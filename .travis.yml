@@ -4,6 +4,6 @@ python:
   - "2.7"
   - "2.6"
 # command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
-install: apt-get install python-numpy python-scipy msgpack-python
+install: sudo apt-get install python-numpy python-scipy msgpack-python
 # command to run tests, e.g. python setup.py test
 script:  nosetests tests
