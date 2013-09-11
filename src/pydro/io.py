@@ -11,6 +11,8 @@ __all__ = ['LoadModel', 'SaveModel']
 def _type_handler(obj):
     if isinstance(obj, numpy.int32):
         return int(obj)
+    elif isinstance(obj, numpy.float32):
+        return float(obj)
     elif isinstance(obj, numpy.ndarray):
         if obj.dtype == numpy.float32:
             return {
