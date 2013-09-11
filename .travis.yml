@@ -1,9 +1,7 @@
-nguage: python
+language: python
 python:
-  - "3.3"
   - "2.7"
-  - "2.6"
 install:
   - sudo apt-get install python-numpy python-scipy msgpack-python python-nose libblas-dev
-  - python setup.py build --build-lib build-lib --build-scripts build-scripts
+  - python setup.py build_ext --inplace
 script:  nosetests
