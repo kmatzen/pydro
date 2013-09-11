@@ -1,7 +1,7 @@
 import subprocess
 import os
 import sys
-sys.path.prepend('')
+#sys.path.prepend('')
 
 def voc_dpm2pydro_test():
     print(os.getcwd())
