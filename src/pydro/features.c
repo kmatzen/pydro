@@ -24,7 +24,7 @@
 #define eps 0.0001
 
 // unit vectors used to compute gradient orientation
-float uu[9] = {1.0000, 
+static float uu[9] = {1.0000, 
 		0.9397, 
 		0.7660, 
 		0.500, 
@@ -33,7 +33,7 @@ float uu[9] = {1.0000,
 		-0.5000, 
 		-0.7660, 
 		-0.9397};
-float vv[9] = {0.0000, 
+static float vv[9] = {0.0000, 
 		0.3420, 
 		0.6428, 
 		0.8660, 
@@ -54,6 +54,15 @@ static inline int maxi(int x, int y) { return (x <= y ? y : x); }
 // returns HOG features
 PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
   const npy_intp *dims = PyArray_DIMS(pyimage);
+  int cells[2];
+  int visible[2];
+  npy_intp out[3];
+  float *hist = NULL;
+  float *norm = NULL;
+  PyArrayObject *pyfeat = NULL;
+  int x, y;  
+  int o;
+
   if (PyArray_NDIM(pyimage) != 3 ||
       dims[2] != 3 ||
       PyArray_DESCR(pyimage)->type_num != NPY_FLOAT) {
@@ -62,24 +71,20 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
   }
 
   // memory for caching orientation histograms & their norms
-  int cells[2];
   cells[0] = (int)round((float)dims[0]/(float)sbin);
   cells[1] = (int)round((float)dims[1]/(float)sbin);
-  float *hist = (float*)calloc(cells[0]*cells[1]*18, sizeof(float));
-  float *norm = (float *)calloc(cells[0]*cells[1], sizeof(float));
+  hist = (float*)calloc(cells[0]*cells[1]*18, sizeof(float));
+  norm = (float *)calloc(cells[0]*cells[1], sizeof(float));
 
   // memory for HOG features
-  npy_intp out[3];
   out[0] = maxi(cells[0]-2, 0);
   out[1] = maxi(cells[1]-2, 0);
   out[2] = 27+4+1;
-  PyArrayObject *pyfeat = (PyArrayObject*)PyArray_SimpleNew((npy_intp)3, out, NPY_FLOAT);
+  pyfeat = (PyArrayObject*)PyArray_SimpleNew((npy_intp)3, out, NPY_FLOAT);
   
-  int visible[2];
   visible[0] = cells[0]*sbin;
   visible[1] = cells[1]*sbin;
 
-  int x, y;  
   for (x = 1; x < visible[1]-1; x++) {
     for (y = 1; y < visible[0]-1; y++) {
       int xpos = mini(x, dims[1]-2);
@@ -91,17 +96,23 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
       float dx = *(float*)PyArray_GETPTR3(pyimage, ypos, xpos+1, 0) - *(float*)PyArray_GETPTR3(pyimage, ypos, xpos-1, 0);
       float v = dx*dx + dy*dy;
 
+      float dy2, dx2, v2, dy3, dx3, v3;
+      float best_dot = 0;
+      int best_o = 0;
+      float xp, yp, vx0, vy0, vx1, vy1;
+      int ixp, iyp; 
+       
       // second color channel
       s += *(float*)PyArray_GETPTR3(pyimage, ypos, xpos, 1);
-      float dy2 = *(float*)PyArray_GETPTR3(pyimage, ypos+1, xpos, 1) - *(float*)PyArray_GETPTR3(pyimage, ypos-1, xpos, 1);
-      float dx2 = *(float*)PyArray_GETPTR3(pyimage, ypos, xpos+1, 1) - *(float*)PyArray_GETPTR3(pyimage, ypos, xpos-1, 1);
-      float v2 = dx2*dx2 + dy2*dy2;
+      dy2 = *(float*)PyArray_GETPTR3(pyimage, ypos+1, xpos, 1) - *(float*)PyArray_GETPTR3(pyimage, ypos-1, xpos, 1);
+      dx2 = *(float*)PyArray_GETPTR3(pyimage, ypos, xpos+1, 1) - *(float*)PyArray_GETPTR3(pyimage, ypos, xpos-1, 1);
+      v2 = dx2*dx2 + dy2*dy2;
 
       // third color channel
       s += *(float*)PyArray_GETPTR3(pyimage, ypos, xpos, 2);
-      float dy3 = *(float*)PyArray_GETPTR3(pyimage, ypos+1, xpos, 2) - *(float*)PyArray_GETPTR3(pyimage, ypos-1, xpos, 2);
-      float dx3 = *(float*)PyArray_GETPTR3(pyimage, ypos, xpos+1, 2) - *(float*)PyArray_GETPTR3(pyimage, ypos, xpos-1, 2);
-      float v3 = dx3*dx3 + dy3*dy3;
+      dy3 = *(float*)PyArray_GETPTR3(pyimage, ypos+1, xpos, 2) - *(float*)PyArray_GETPTR3(pyimage, ypos-1, xpos, 2);
+      dx3 = *(float*)PyArray_GETPTR3(pyimage, ypos, xpos+1, 2) - *(float*)PyArray_GETPTR3(pyimage, ypos, xpos-1, 2);
+      v3 = dx3*dx3 + dy3*dy3;
 
       // pick channel with strongest gradient
       if (v2 > v) {
@@ -116,9 +127,6 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
       }
 
       // snap to one of 18 orientations
-      float best_dot = 0;
-      int best_o = 0;
-      int o;
       for (o = 0; o < 9; o++) {
         float dot = uu[o]*dx + vv[o]*dy;
         if (dot > best_dot) {
@@ -131,14 +139,14 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
       }
       
       // add to 4 histograms around pixel using bilinear interpolation
-      float xp = ((float)x+0.5)/(float)sbin - 0.5;
-      float yp = ((float)y+0.5)/(float)sbin - 0.5;
-      int ixp = (int)floor(xp);
-      int iyp = (int)floor(yp);
-      float vx0 = xp-ixp;
-      float vy0 = yp-iyp;
-      float vx1 = 1.0-vx0;
-      float vy1 = 1.0-vy0;
+      xp = ((float)x+0.5)/(float)sbin - 0.5;
+      yp = ((float)y+0.5)/(float)sbin - 0.5;
+      ixp = (int)floor(xp);
+      iyp = (int)floor(yp);
+      vx0 = xp-ixp;
+      vy0 = yp-iyp;
+      vx1 = 1.0-vx0;
+      vy1 = 1.0-vy0;
       v = sqrt(v);
 
       if (ixp >= 0 && iyp >= 0) {
@@ -164,7 +172,6 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
   }
 
   // compute energy in each block by summing over orientations
-  int o;
   for (o = 0; o < 9; o++) {
     float *src1 = hist + o*cells[0]*cells[1];
     float *src2 = hist + (o+9)*cells[0]*cells[1];
@@ -181,6 +188,10 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
   for (x = 0; x < out[1]; x++) {
     for (y = 0; y < out[0]; y++) {
       float *src, *p, n1, n2, n3, n4;
+      float t1 = 0;
+      float t2 = 0;
+      float t3 = 0;
+      float t4 = 0;
 
       p = norm + (x+1)*cells[0] + y+1;
       n1 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
@@ -190,11 +201,6 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
       n3 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
       p = norm + x*cells[0] + y;      
       n4 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
-
-      float t1 = 0;
-      float t2 = 0;
-      float t3 = 0;
-      float t4 = 0;
 
       // contrast-sensitive features
       src = hist + (x+1)*cells[0] + (y+1);
@@ -239,101 +245,7 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
   return pyfeat;
 }
 
-PyArrayObject * detect (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
-    if (PyArray_NDIM(pyfeatures) != 3) {
-        PyErr_SetString(PyExc_TypeError, "Features must be 3 dimensional.");
-        return NULL;
-    }
-
-    if (PyArray_NDIM(pyfilter) != 3) {
-        PyErr_SetString(PyExc_TypeError, "Filter must be 3 dimensional.");
-        return NULL;
-    }
-
-    if (PyArray_DESCR(pyfeatures)->type_num != NPY_FLOAT) {
-        PyErr_SetString(PyExc_TypeError, "Features must be single precision floating point.");
-        return NULL;
-    }
-
-    if (PyArray_DESCR(pyfilter)->type_num != NPY_FLOAT) {
-        PyErr_SetString(PyExc_TypeError, "Filter must be a single precision floating point.");
-        return NULL;
-    }
-
-    npy_intp * features_dims = PyArray_DIMS(pyfeatures);
-    npy_intp * filter_dims = PyArray_DIMS(pyfilter);
-
-    if (features_dims[2] != 32) {
-        PyErr_SetString(PyExc_TypeError, "features' feature dimsionality should be 32.");
-        return NULL;
-    }
-
-    if (filter_dims[2] != 32) {
-        PyErr_SetString(PyExc_TypeError, "filters' feature dimensionality should be 32.");
-        return NULL;
-    }
-
-    npy_intp filtered_dims[2];
-    filtered_dims[0] = features_dims[0];
-    filtered_dims[1] = features_dims[1];
-    PyArrayObject * pyfiltered = (PyArrayObject*)PyArray_SimpleNew((npy_intp)2, filtered_dims, NPY_FLOAT);
-
-    npy_intp * features_stride = PyArray_STRIDES(pyfeatures);
-    npy_intp * filtered_stride = PyArray_STRIDES(pyfiltered);
-
-    // zero out array
-    int a;
-    int b;
-    for (a = 0; a < filtered_dims[0]; ++a) {
-        for (b = 0; b < filtered_dims[1]; ++b) {
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -bias;
-        }
-    }
-
-    // for each layer
-    int l;
-    for (l = 0; l < 32; ++l) {
-        // iterate over filter which should be tiny compared to the image
-        int i;
-        for (i = 0; i < filter_dims[0]; ++i) {
-            int j;
-            for (j = 0; j < filter_dims[1]; ++j) {
-                float weight = *(float*)PyArray_GETPTR3(pyfilter, i, j, l);
-                int k;
-                for (k = 0; k < features_dims[0]-filter_dims[0]+1; ++k) {
-                    float * out = PyArray_GETPTR2(pyfiltered, k+(filter_dims[0]-1)/2, (filter_dims[1]-1)/2);
-                    float * in = PyArray_GETPTR3(pyfeatures, i+k, j, l);
-                    cblas_saxpy(features_dims[1]-filter_dims[1]+1, weight, in, features_stride[1]/sizeof(float), out, filtered_stride[1]/sizeof(float));
-                }
-            }
-        }
-    }
-
-    // invalidate edges
-    int top_pad = (filter_dims[0]-1)/2;
-    for (a = 0; a < top_pad+1; ++a)
-        for (b = 0; b < filtered_dims[1]; ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -2;
-
-    int bottom_pad = filter_dims[0] - 1 - top_pad; 
-    for (a = filtered_dims[0]-bottom_pad-1; a < filtered_dims[0]; ++a)
-        for (b = 0; b < filtered_dims[1]; ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -2;
-
-    int left_pad = (filter_dims[1]-1)/2;
-    for (a = 0; a < filtered_dims[0]; ++a)
-        for (b = 0; b < left_pad+1; ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -2;
-
-    int right_pad = filter_dims[1] - 1 - left_pad; 
-    for (a = 0; a < filtered_dims[0]; ++a)
-        for (b = filtered_dims[1]-right_pad-1; b < filtered_dims[1]; ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -2;
-
-    return pyfiltered;
-}
-
-static PyObject * pydro_ComputeFeatures(PyObject * self, PyObject * args)
+static PyObject * ComputeFeatures(PyObject * self, PyObject * args)
 {
     PyArrayObject * pyimage;
     int sbin;
@@ -342,21 +254,11 @@ static PyObject * pydro_ComputeFeatures(PyObject * self, PyObject * args)
     return (PyObject*)process(pyimage, sbin);
 }
 
-static PyObject * pydro_Detect(PyObject * self, PyObject * args)
-{
-    PyArrayObject * pyfeatures;
-    PyArrayObject * pyfilter;
-    float bias = 0.0f;
-    if (!PyArg_ParseTuple(args, "O!O!|f", &PyArray_Type, &pyfeatures, &PyArray_Type, &pyfilter, &bias)) 
-        return NULL;
-    return (PyObject*)detect(pyfeatures, pyfilter, bias);
-}
-
 #if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
-    "pydro",
-    "Wrapper for Pedro Felzenszwalb's MATLAB implementations.",
+    "_features",
+    "Pydro features native implementation.",
     -1,
     NULL,
     NULL,
@@ -367,19 +269,18 @@ static struct PyModuleDef moduledef = {
 #endif
 
 #if PY_MAJOR_VERSION < 3
-static PyMethodDef pydro_methods[] = {
-    {"ComputeFeatures", pydro_ComputeFeatures, METH_VARARGS, "Compute Pedro's special HoG features."},
-    {"Detect", pydro_Detect, METH_VARARGS, "Compute a 2D cross correlation between a filter and image features.  Optionally add bias term."},
+static PyMethodDef _features_methods[] = {
+    {"ComputeFeatures", ComputeFeatures, METH_VARARGS, "Compute Pedro's special HoG features."},
     {NULL}
 };
 #endif
 
 #if PY_MAJOR_VERSION >= 3
 PyMODINIT_FUNC
-PyInit_pydro(void)
+PyInit__features(void)
 #else
 PyMODINIT_FUNC
-initpydro(void)
+init_features(void)
 #endif
 {
     import_array();
@@ -387,7 +288,7 @@ initpydro(void)
 #if PY_MAJOR_VERSION >= 3
     PyObject *m = PyModule_Create(&moduledef);
 #else
-    Py_InitModule3("pydro", pydro_methods, "Wrapper for Pedro Felzenszwalb's MATLAB implementations.");
+    Py_InitModule3("_features", _features_methods, "Pydro native feature implementation.");
 #endif
 
 #if PY_MAJOR_VERSION >= 3
