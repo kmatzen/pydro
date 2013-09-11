@@ -3,7 +3,7 @@ python:
   - "3.3"
   - "2.7"
   - "2.6"
-# command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
-install: sudo apt-get install python-numpy python-scipy msgpack-python python-nose
-# command to run tests, e.g. python setup.py test
-script:  nosetests tests
+install:
+  - sudo apt-get install python-numpy python-scipy msgpack-python python-nose
+  - python setup.py build --build-lib build-lib --build-scripts build-scripts
+script:  nosetests
