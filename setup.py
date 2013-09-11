@@ -1,12 +1,20 @@
 from distutils.core import setup, Extension
 import numpy
 
+use_mkl = False
+if use_mkl:
+    extra_libs = ['mkl_rt', 'mkl_intel_ilp64', 'mkl_gnu_thread', 'mkl_core']
+    extra_flags = ['-D__USE_MKL__']
+else:
+    extra_libs = []
+    extra_flags = []
+
 pydro_detect = Extension(
     'pydro._detect',
     sources=['src/pydro/_detect.c'],
     library_dirs=['/usr/local/intel/composer_xe_2013.5.192/mkl/lib/intel64'],
-    libraries=['mkl_rt', 'mkl_intel_ilp64', 'mkl_gnu_thread', 'mkl_core', 'dl', 'pthread', 'm', 'gomp'],
-    extra_compile_args=['-fopenmp', '-g', '-DMKL_ILP64', '-m64', '-O3', '-Wall', '-Werror', '-Wno-long-long'],
+    libraries=['dl', 'pthread', 'm', 'gomp']+extra_libs,
+    extra_compile_args=['-fopenmp', '-g', '-DMKL_ILP64', '-m64', '-O3', '-Wall', '-Werror', '-Wno-long-long']+extra_flags,
     include_dirs=[numpy.get_include(), '.', '/usr/local/intel/composer_xe_2013.5.192/mkl/include'],
 )
 
@@ -14,8 +22,8 @@ pydro_features = Extension(
     'pydro._features',
     sources=['src/pydro/_features.c'],
     library_dirs=['/usr/local/intel/composer_xe_2013.5.192/mkl/lib/intel64'],
-    libraries=['mkl_rt', 'mkl_intel_ilp64', 'mkl_gnu_thread', 'mkl_core', 'dl', 'pthread', 'm', 'gomp'],
-    extra_compile_args=['-fopenmp', '-g', '-DMKL_ILP64', '-m64', '-O3', '-Wall', '-Werror', '-Wno-long-long'],
+    libraries=['dl', 'pthread', 'm', 'gomp']+extra_libs,
+    extra_compile_args=['-fopenmp', '-g', '-DMKL_ILP64', '-m64', '-O3', '-Wall', '-Werror', '-Wno-long-long']+extra_flags,
     include_dirs=[numpy.get_include(), '.', '/usr/local/intel/composer_xe_2013.5.192/mkl/include'],
 )
 
