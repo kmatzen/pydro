@@ -4,6 +4,6 @@ python:
   - "2.7"
   - "2.6"
 install:
-  - sudo apt-get install python-numpy python-scipy msgpack-python python-nose
+  - sudo apt-get install python-numpy python-scipy msgpack-python python-nose libblas-dev
   - python setup.py build --build-lib build-lib --build-scripts build-scripts
 script:  nosetests

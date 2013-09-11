@@ -4,7 +4,11 @@
 
 #include <math.h>
 
+#ifdef __USE_MKL__
 #include <mkl_cblas.h>
+#else
+#include <cblas.h>
+#endif
 
 PyArrayObject * detect (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
     npy_intp * features_dims = PyArray_DIMS(pyfeatures);

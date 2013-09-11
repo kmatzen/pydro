@@ -38,7 +38,5 @@ setup (
         'numpy',
         'scipy',
     ],
-
-    test_suite='tests',
 )
 
