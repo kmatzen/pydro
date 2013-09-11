@@ -4,7 +4,7 @@ import os
 def voc_dpm2pydro_test():
     print(os.getcwd())
     subprocess.check_call([
-        'voc-dpm2pydro', 
+        'scripts/voc-dpm2pydro', 
         '--input',
         'tests/example.mat', 
         '--output',
