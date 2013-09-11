@@ -3,7 +3,7 @@ import numpy
 
 pydro_detect = Extension(
     'pydro._detect',
-    sources=['src/pydro/detect.c'],
+    sources=['src/pydro/_detect.c'],
     library_dirs=['/usr/local/intel/composer_xe_2013.5.192/mkl/lib/intel64'],
     libraries=['mkl_rt', 'mkl_intel_ilp64', 'mkl_gnu_thread', 'mkl_core', 'dl', 'pthread', 'm', 'gomp'],
     extra_compile_args=['-fopenmp', '-g', '-DMKL_ILP64', '-m64', '-O3', '-Wall', '-Werror', '-Wno-long-long'],
@@ -12,7 +12,7 @@ pydro_detect = Extension(
 
 pydro_features = Extension(
     'pydro._features',
-    sources=['src/pydro/features.c'],
+    sources=['src/pydro/_features.c'],
     library_dirs=['/usr/local/intel/composer_xe_2013.5.192/mkl/lib/intel64'],
     libraries=['mkl_rt', 'mkl_intel_ilp64', 'mkl_gnu_thread', 'mkl_core', 'dl', 'pthread', 'm', 'gomp'],
     extra_compile_args=['-fopenmp', '-g', '-DMKL_ILP64', '-m64', '-O3', '-Wall', '-Werror', '-Wno-long-long'],
@@ -38,5 +38,7 @@ setup (
         'numpy',
         'scipy',
     ],
+
+    test_suite='tests',
 )
 

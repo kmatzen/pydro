@@ -1,1 +1,1 @@
-from _detect import *
+from pydro._detect import *
