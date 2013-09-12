@@ -1,7 +1,7 @@
 from distutils.core import setup, Extension
 import numpy
 
-use_mkl = True
+use_mkl = False
 if use_mkl:
     blas_libs = [
         'mkl_rt', 
