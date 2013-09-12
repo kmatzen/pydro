@@ -7,7 +7,7 @@ from pydro.features import *
 def detection_test():
     data = scipy.io.loadmat('tests/detection_test_data.mat')
 
-    detection = Detect(data['input'], data['filter'])
+    detection = Filter(data['input'], data['filter'])
 
     padded = -2*numpy.ones(detection.shape)
     left_pad = (detection.shape[1]-data['detection'].shape[1])/2
