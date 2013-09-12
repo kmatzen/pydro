@@ -22,8 +22,12 @@ if use_mkl:
 else:
     blas_libs = ['cblas']
     blas_flags = []
-    blas_library_dirs = []
-    blas_include_dirs = []
+    blas_library_dirs = [
+        '/usr/lib/atlas-base'
+    ]
+    blas_include_dirs = [
+        '/usr/include/atlas'
+    ]
 
 pydro_detection = Extension(
     'pydro._detection',
