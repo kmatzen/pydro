@@ -4,6 +4,6 @@ python:
 virtualenv:
     system_site_packages: true
 install:
-  - sudo apt-get install python-numpy python-scipy msgpack-python python-nose libatlas-dev
+  - sudo apt-get install python-numpy python-scipy msgpack-python python-nose libatlas-dev libatlas-base-dev
   - python setup.py build_ext --inplace
 script:  nosetests
