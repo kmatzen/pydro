@@ -1,5 +1,5 @@
 from pydro._detection import *
 
-def DetectPyramid (pyramid, filter):
+def FilterPyramid (pyramid, filter):
     for level in pyramid:
-        yield Detect(level, filter)
+        yield Filter(level, filter)
