@@ -1,10 +1,11 @@
+import copy
 import itertools
 import Queue
 import msgpack
 import numpy
 import zlib
 
-from pydro import *
+from pydro.core import *
 
 __all__ = ['LoadModel', 'SaveModel']
 
@@ -79,6 +80,8 @@ def _type_unpacker(obj):
         return obj
 
 def _denormalize_model (model):
+    model = copy.deepcopy(model)
+
     filters = {}
     filters_rev = {}
     blocks = {}
@@ -157,6 +160,8 @@ def _denormalize_model (model):
     return model    
 
 def _normalize_model(model):
+    model = copy.deepcopy(model)
+
     for filter in model.filters:
         block_idx = filter.blocklabel
         block = model.blocks[block_idx-1]
@@ -211,9 +216,8 @@ def _normalize_model(model):
     return model
 
 def SaveModel(filename, model):
-    _denormalize_model(model)
+    model = _denormalize_model(model)
     packed = msgpack.packb(model, default=_type_handler)
-    _normalize_model(model)
     compressed = zlib.compress(packed)
     with open(filename, 'wb') as f:
         f.write(compressed)
@@ -222,6 +226,6 @@ def LoadModel(filename):
     with open(filename, 'rb') as f:
         compressed = f.read()
     packed = zlib.decompress(compressed)
-    denormalized_model = msgpack.unpackb(packed, object_hook=_type_unpacker)
-    model = _normalize_model(denormalized_model)
+    model = msgpack.unpackb(packed, object_hook=_type_unpacker)
+    model = _normalize_model(model)
     return model

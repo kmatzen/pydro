@@ -10,7 +10,7 @@
 #include <cblas.h>
 #endif
 
-PyArrayObject * filter (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
+PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
     npy_intp * features_dims = PyArray_DIMS(pyfeatures);
     npy_intp * filter_dims = PyArray_DIMS(pyfilter);
     int top_pad = (filter_dims[0]-1)/2;
@@ -104,14 +104,14 @@ PyArrayObject * filter (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, fl
     return pyfiltered;
 }
 
-static PyObject * Filter(PyObject * self, PyObject * args)
+static PyObject * FilterImage(PyObject * self, PyObject * args)
 {
     PyArrayObject * pyfeatures;
     PyArrayObject * pyfilter;
     float bias = 0.0f;
     if (!PyArg_ParseTuple(args, "O!O!|f", &PyArray_Type, &pyfeatures, &PyArray_Type, &pyfilter, &bias)) 
         return NULL;
-    return (PyObject*)filter(pyfeatures, pyfilter, bias);
+    return (PyObject*)filter_image(pyfeatures, pyfilter, bias);
 }
 
 #if PY_MAJOR_VERSION >= 3
@@ -130,7 +130,7 @@ static struct PyModuleDef moduledef = {
 
 #if PY_MAJOR_VERSION < 3
 static PyMethodDef _detection_methods[] = {
-    {"Filter", Filter, METH_VARARGS, "Compute a 2D cross correlation between a filter and image features.  Optionally add bias term."},
+    {"FilterImage", FilterImage, METH_VARARGS, "Compute a 2D cross correlation between a filter and image features.  Optionally add bias term."},
     {NULL}
 };
 #endif

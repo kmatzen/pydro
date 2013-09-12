@@ -3,11 +3,12 @@ import numpy
 
 from pydro.detection import *
 from pydro.features import *
+from pydro.io import *
 
 def detection_test():
     data = scipy.io.loadmat('tests/detection_test_data.mat')
 
-    detection = Filter(data['input'], data['filter'])
+    detection = FilterImage(data['input'], data['filter'])
 
     padded = -2*numpy.ones(detection.shape)
     left_pad = (detection.shape[1]-data['detection'].shape[1])/2
@@ -24,4 +25,10 @@ def detection_input_test():
     features = ComputeFeatures(image, 8)
     assert (numpy.fabs(data['input'] - features) < 1e-6).all()
 
-   
+ 
+def filter_model_test():
+    data = scipy.io.loadmat('tests/detection_test_data.mat')
+    model = LoadModel('tests/example.dpm')
+    filtered_model = FilterModel(data['filter'], model)
+
+

@@ -1,4 +1,4 @@
-__all__ = ['Block', 'Def', 'DeformationRule', 'Feature', 'Filter', 'Loc', 'Model', 'Rule', 'Stats', 'StructuralRule', 'Symbol']
+__all__ = ['Block', 'Def', 'DeformationRule', 'Feature', 'Filter', 'Loc', 'Model', 'Rule', 'Stats', 'StructuralRule', 'Symbol', 'FilteredSymbol', 'FilteredStructuralRule', 'FilteredDeformationRule']
 
 class Model(object):
     def __init__ (self, clss, year, note, filters, rules, symbols, start, maxsize, minsize,
@@ -39,21 +39,48 @@ class Rule(object):
         self.loc = loc
         self.blocks = blocks
 
+    def __repr__ (self):
+        return '%s: %s'%(self.type, len(self.rhs))
+
 class DeformationRule(Rule):
     def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, offset, df, loc, blocks):
         super(DeformationRule, self).__init__ (type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks)
         self.df = df
+
+class FilteredDeformationRule(DeformationRule):
+    def __init__ (self, deformation_rule, filtered_lhs, filtered_rhs):
+        super(FilteredDeformationRule, self).__init__ (**deformation_rule.__dict__)
+        self.filtered_lhs = filtered_lhs
+        self.filtered_rhs = filtered_rhs
 
 class StructuralRule(Rule):
     def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, anchor, offset, loc, blocks):
         super(StructuralRule, self).__init__ (type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks)
         self.anchor = anchor
 
+class FilteredStructuralRule(StructuralRule):
+    def __init__ (self, structural_rule, filtered_lhs, filtered_rhs):
+        super(FilteredStructuralRule, self).__init__ (**structural_rule.__dict__)
+        self.filtered_lhs = filtered_lhs
+        self.filtered_rhs = filtered_rhs
+
 class Symbol(object):
-    def __init__ (self, type, filter):
+    def __init__ (self, type, filter, rules=[]):
         self.type = type
         self.filter = filter
-        self.rules = []
+        self.rules = rules
+
+    def __repr__ (self):
+        return '%s\t%s'%(self.type, '\n\t'.join(str(type(r)) for r in self.rules))
+
+class FilteredSymbol(Symbol):
+    def __init__ (self, symbol, filtered):
+        super(FilteredSymbol, self).__init__ (**symbol.__dict__)
+        self.filtered = filtered
+        self.filtered_rules = []
+
+    def __repr__ (self):
+        return '%s\t%s'%(self.type, '\n\t'.join(str(type(r)) for r in self.filtered_rules))
 
 class Block(object):
     def __init__ (self, w, lb, learn, reg_mult, dim, shape, type):
