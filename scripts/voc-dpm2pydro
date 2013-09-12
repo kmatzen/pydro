@@ -8,7 +8,7 @@ import itertools
 import logging
 import pickle
 
-from pydro import *
+from pydro.core import *
 from pydro.io import *
 from pydro.io import _normalize_model
 
@@ -28,6 +28,7 @@ def convert_filters(old_filters):
         yield new_filter
 
 def convert_def(old_def):
+    old_def, = old_def
     blocklabel, = old_def[0]
     flip, = old_def[1]
 
@@ -44,6 +45,14 @@ def convert_loc(old_loc):
         blocklabel=int(blocklabel),
     )
     return new_loc
+
+def convert_offset(old_offset):
+    blocklabel, = old_offset[0]
+
+    new_offset = Offset(
+        blocklabel=int(blocklabel),
+    )
+    return new_offset
 
 def convert_rules(old_rules):
     for old_group in old_rules:
@@ -73,8 +82,8 @@ def convert_rules(old_rules):
                     detwindow=tuple(detwindow.astype(numpy.int32)),
                     shiftwindow=tuple(shiftwindow.astype(numpy.int32)),
                     i=int(i),
-                    offset=[tuple(a.astype(numpy.int32)) for a, in offset],
-                    df=[convert_def(a) for a in df],
+                    offset=convert_offset(offset),
+                    df=convert_def(df),
                     loc=convert_loc(loc),
                     blocks=tuple(blocks.astype(numpy.int32)),
                 )
@@ -92,8 +101,8 @@ def convert_rules(old_rules):
                     detwindow=tuple(detwindow.astype(numpy.int32)),
                     shiftwindow=tuple(shiftwindow.astype(numpy.int32)),
                     i=int(i),
-                    anchor=[tuple(a.astype(numpy.int32)) for a, in anchor],
-                    offset=[tuple(a.astype(numpy.int32)) for a, in offset],
+                    anchor=tuple(tuple(a.astype(numpy.int32).tolist()) for a, in anchor),
+                    offset=convert_offset(offset),
                     loc=convert_loc(loc),
                     blocks=tuple(blocks.astype(numpy.int32)),
                 )
@@ -116,21 +125,21 @@ def convert_symbols(old_symbols):
         yield new_symbol
 
 def convert_features(old_features):
-    for old_feature in old_features:
-        sbin, = old_feature[0]
-        dim, = old_feature[1]
-        truncation_dim, = old_feature[2]
-        extra_octave, = old_feature[3]
-        bias, = old_feature[4]
+    old_features, = old_features
+    sbin, = old_features[0]
+    dim, = old_features[1]
+    truncation_dim, = old_features[2]
+    extra_octave, = old_features[3]
+    bias, = old_features[4]
 
-        new_feature = Feature(
-            sbin=int(sbin),
-            dim=int(dim),
-            truncation_dim=int(truncation_dim),
-            extra_octave=bool(extra_octave),
-            bias=int(bias),
-        )
-        yield new_feature
+    new_feature = Features(
+        sbin=int(sbin),
+        dim=int(dim),
+        truncation_dim=int(truncation_dim),
+        extra_octave=bool(extra_octave),
+        bias=int(bias),
+    )
+    return new_feature
 
 def convert_blocks(old_blocks):
     for old_block in old_blocks:
@@ -201,7 +210,7 @@ def convert_model(old_model):
         thresh=float(thresh),
         type=str(type),
         blocks=list(convert_blocks(old_blocks)),
-        features=list(convert_features(old_features)),
+        features=convert_features(old_features),
         stats=convert_stats(old_stats),
     )
 

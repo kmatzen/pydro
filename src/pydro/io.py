@@ -41,10 +41,12 @@ def _type_handler(obj):
         return {'__symbol__':obj.__dict__}
     elif isinstance(obj, Block):
         return {'__block__':obj.__dict__}
-    elif isinstance(obj, Feature):
-        return {'__feature__':obj.__dict__}
+    elif isinstance(obj, Features):
+        return {'__features__':obj.__dict__}
     elif isinstance(obj, Loc):
         return {'__loc__':obj.__dict__}
+    elif isinstance(obj, Offset):
+        return {'__offset__':obj.__dict__}
     elif isinstance(obj, Def):
         return {'__def__':obj.__dict__}
     elif isinstance(obj, Stats):
@@ -72,10 +74,14 @@ def _type_unpacker(obj):
             return DeformationRule(**obj['__rule__'])
     elif '__loc__' in obj:
         return Loc(**obj['__loc__'])
+    elif '__offset__' in obj:
+        return Offset(**obj['__offset__'])
     elif '__block__' in obj:
         return Block(**obj['__block__'])
     elif '__def__' in obj:
         return Def(**obj['__def__'])
+    elif '__features__' in obj:
+        return Features(**obj['__features__'])
     else:
         return obj
 
@@ -138,12 +144,12 @@ def _denormalize_model (model):
                 blocks[block] = block_idx
                 blocks_rev[block_idx] = block
 
-            blocklabel = blocks[rule.loc.blocklabel]
             rule.loc.blocklabel = blocks[rule.loc.blocklabel]
 
+            rule.offset.blocklabel = blocks[rule.offset.blocklabel]
+
             if isinstance(rule, DeformationRule):
-                for df in rule.df:
-                    df.blocklabel = blocks[df.blocklabel]
+                rule.df.blocklabel = blocks[rule.df.blocklabel]
 
             rule.blocks = [blocks[block] for block in rule.blocks]
  
@@ -191,14 +197,17 @@ def _normalize_model(model):
             rule.rhs = rhs
 
             if isinstance(rule, DeformationRule):
-                for df in rule.df:
-                    df_idx = df.blocklabel
-                    block = model.blocks[df_idx-1]
-                    df.blocklabel = block
+                df_idx = rule.df.blocklabel
+                block = model.blocks[df_idx-1]
+                rule.df.blocklabel = block
 
             loc_idx = rule.loc.blocklabel
             loc = model.blocks[loc_idx-1]
             rule.loc.blocklabel = loc
+
+            offset_idx = rule.offset.blocklabel
+            offset = model.blocks[offset_idx-1]
+            rule.offset.blocklabel = offset
 
             block_idx = rule.blocks
             blocks = [model.blocks[a-1] for a in block_idx]

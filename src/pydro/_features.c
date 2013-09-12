@@ -50,7 +50,7 @@ static inline int maxi(int x, int y) { return (x <= y ? y : x); }
 // main function:
 // takes a float color image and a bin size 
 // returns HOG features
-PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
+PyObject *process(PyArrayObject *pyimage, const int sbin) {
   const npy_intp *dims = PyArray_DIMS(pyimage);
   int cells[2];
   int visible[2];
@@ -240,7 +240,7 @@ PyArrayObject *process(PyArrayObject *pyimage, const int sbin) {
 
   free(hist);
   free(norm);
-  return pyfeat;
+  return PyArray_Return(pyfeat);
 }
 
 static PyObject * ComputeFeatures(PyObject * self, PyObject * args)
@@ -249,7 +249,7 @@ static PyObject * ComputeFeatures(PyObject * self, PyObject * args)
     int sbin;
     if (!PyArg_ParseTuple(args, "O!i", &PyArray_Type, &pyimage, &sbin)) 
         return NULL;
-    return (PyObject*)process(pyimage, sbin);
+    return process(pyimage, sbin);
 }
 
 #if PY_MAJOR_VERSION >= 3
