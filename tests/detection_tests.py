@@ -23,3 +23,5 @@ def detection_input_test():
 
     features = ComputeFeatures(image, 8)
     assert (numpy.fabs(data['input'] - features) < 1e-6).all()
+
+   
