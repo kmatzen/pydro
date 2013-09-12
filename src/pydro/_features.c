@@ -18,12 +18,6 @@
 
 #include <math.h>
 
-#ifdef __USE_MKL__
-#include <mkl_cblas.h>
-#else
-#include <cblas.h>
-#endif
-
 // small value, used to avoid division by zero
 #define eps 0.0001
 
