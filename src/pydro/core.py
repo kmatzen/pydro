@@ -148,7 +148,6 @@ class FilteredStructuralRule(StructuralRule):
                     stmp = (-numpy.inf*numpy.ones(score[i].shape)).astype(numpy.float32)
                     stmp[oy:oy+sz[0], ox:ox+sz[1]] = sp
 
-                    print(stmp.shape, self.score[i].shape)
                     self.score[i] = stmp + self.score[i]
                 else:
                     self.score[i] += numpy.array([[-numpy.inf]], dtype=numpy.float32)
