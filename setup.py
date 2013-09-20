@@ -70,8 +70,14 @@ pydro_features = Extension(
 
 setup ( 
     name='pydro',
-    version='0.1',
+    version='0.0',
     description="Python reimplementation of Pedro Felzenszwalb's HoG features.",
+    author='Kevin Matzen',
+    author_email='kmatzen@cs.cornell.edu',
+    url='https://github.com/kmatzen/pydro',
+    download_url='https://github.com/kmatzen/pydro/tarball/master',
+    keywords=['dpm', 'vision', 'recognition', 'detection', 'deformable', 'parts', 'model'],
+    classifiers=[],
     ext_modules=[
         pydro_detection,
         pydro_features,
