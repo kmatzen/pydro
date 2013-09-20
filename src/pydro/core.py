@@ -9,6 +9,19 @@ __all__ = ['Offset', 'Block', 'Def', 'DeformationRule', 'Features', 'Filter', 'L
 
 Score = namedtuple('Score', 'score,scale')
 
+def _pad_all (matrices):
+    matrices = [m if isinstance(m, numpy.ndarray) else numpy.array([[m]],dtype=numpy.float32) for m in matrices]
+
+    size_x = 0
+    size_y = 0
+    for matrix in matrices:
+        size_x = max(size_x, matrix.shape[1])
+        size_y = max(size_y, matrix.shape[0])
+    assert size_x > 0
+    assert size_y > 0
+
+    return [numpy.pad(m, ((0, size_y-m.shape[0]), (0, size_x-m.shape[1])), mode='constant', constant_values=(-numpy.inf,)) for m in matrices]
+
 class Model(object):
     def __init__ (self, clss, year, note, filters, rules, symbols, start, maxsize, minsize,
                     interval, sbin, thresh, type, blocks, features, stats):
@@ -74,14 +87,14 @@ class FilteredDeformationRule(DeformationRule):
        
         self.filtered_rhs = [s.Filter(pyramid, model) for s in self.rhs]
 
-        def_w = self.df.blocklabel.w.reshape(self.df.blocklabel.shape)
+        def_w = self.df.blocklabel.w
         
         assert len(self.filtered_rhs) == 1
 
         score = self.filtered_rhs[0].score
 
-        bias = self.offset.blocklabel.w.reshape(self.offset.blocklabel.shape)
-        loc_w = self.loc.blocklabel.w.reshape(self.loc.blocklabel.shape)
+        bias = self.offset.blocklabel.w
+        loc_w = self.loc.blocklabel.w
 
         loc_f = numpy.zeros((3, len(pyramid)), dtype=numpy.float32)
         loc_f[0,0:model.interval] = 1
@@ -108,8 +121,8 @@ class FilteredStructuralRule(StructuralRule):
         
         self.filtered_rhs = [s.Filter(pyramid, model) for s in self.rhs]
 
-        bias = self.offset.blocklabel.w.reshape(self.offset.blocklabel.shape)*model.features.bias
-        loc_w = self.loc.blocklabel.w.reshape(self.loc.blocklabel.shape)
+        bias = self.offset.blocklabel.w*model.features.bias
+        loc_w = self.loc.blocklabel.w
 
         loc_f = numpy.zeros((3, len(pyramid)))
         loc_f[0,0:model.interval] = 1
@@ -125,32 +138,45 @@ class FilteredStructuralRule(StructuralRule):
 
             step = 2**ds
 
+            virtpadx = (step-1)*model.maxsize[1]
+            virtpady = (step-1)*model.maxsize[0]
+
+            startx = ax-virtpadx+1
+            starty = ay-virtpady+1
+
             score = [s.score for s in filtered_symbol.score]
 
             for i in xrange(len(score)):
                 level = i - model.interval*ds
                 
                 if level >= 0:
-                    endy = min(score[i].shape[0]-1, ay+step*(score[i].shape[0]-1))
-                    endx = min(score[i].shape[1]-1, ax+step*(score[i].shape[1]-1))
+                    endy = min(score[level].shape[0], starty+step*(score[i].shape[0]-1))
+                    endx = min(score[level].shape[1], startx+step*(score[i].shape[1]-1))
 
-                    iy = numpy.arange(ay, endy, step)
+                    iy = numpy.arange(starty, endy+1, step)
+                    iy -= 1
                     oy = (iy < 0).sum()
-                    iy = iy[numpy.where(iy >= 0)]
+                    iy = iy[numpy.where(iy >= 0)].flatten()
 
-                    ix = numpy.arange(ax, endx, step)
+                    ix = numpy.arange(startx, endx+1, step)
+                    ix -= 1
                     ox = (ix < 0).sum()
-                    ix = ix[numpy.where(ix >= 0)]
+                    ix = ix[numpy.where(ix >= 0)].flatten()
 
                     sp = score[level][iy,:][:,ix]
                     sz = sp.shape
 
                     stmp = (-numpy.inf*numpy.ones(score[i].shape)).astype(numpy.float32)
+                    assert oy >= 0
+                    assert ox >= 0
+                    assert oy+sz[0] <= stmp.shape[0]
+                    assert ox+sz[1] <= stmp.shape[1]
                     stmp[oy:oy+sz[0], ox:ox+sz[1]] = sp
-
-                    self.score[i] = stmp + self.score[i]
+           
+                    self.score[i], stmp = _pad_all([self.score[i], stmp])
+                    self.score[i] += stmp
                 else:
-                    self.score[i] += numpy.array([[-numpy.inf]], dtype=numpy.float32)
+                    self.score[i] = numpy.array([[-numpy.inf]], dtype=numpy.float32)
 
         self.score = [Score(scale=l.scale, score=s) for l, s in itertools.izip(pyramid, self.score)]
 
@@ -177,16 +203,20 @@ class FilteredSymbol(Symbol):
         super(FilteredSymbol, self).__init__ (**symbol.__dict__)
 
         if self.filter is not None:
-            filter = self.filter.blocklabel.w.reshape(self.filter.blocklabel.shape)
+            filter = self.filter.blocklabel.w
             self.filtered = FilterPyramid (pyramid, filter)
             self.score = [Score(scale=level.scale, score=filtered) for level, filtered in itertools.izip(pyramid, self.filtered)]
+            self.filtered_rules = []
         else:
             self.filtered_rules = [r.Filter(pyramid, model) for r in self.rules]
 
             self.score = self.filtered_rules[0].score
             for filtered_rule in self.filtered_rules[1:]:
                 for level in xrange(len(filtered_rule.score)):
-                    self.score[level] = Score(scale=self.score[level].scale, score=numpy.max(numpy.dstack((self.score[level].score, filtered_rule.score[level].score)), axis=2))
+                    self.score[level] = Score(
+                        scale=self.score[level].scale, 
+                        score=numpy.max(numpy.dstack((_pad_all([self.score[level].score, filtered_rule.score[level].score]))), axis=2)
+                    )
 
         assert self.score is not None or self.filtered is not None
 
@@ -194,13 +224,12 @@ class FilteredSymbol(Symbol):
         return '%s\t%s'%(self.type, '\n\t'.join(str(type(r)) for r in self.filtered_rules))
 
 class Block(object):
-    def __init__ (self, w, lb, learn, reg_mult, dim, shape, type):
+    def __init__ (self, w, lb, learn, reg_mult, dim, type):
         self.w = w
         self.lb = lb
         self.learn = learn
         self.reg_mult = reg_mult
         self.dim = dim  
-        self.shape = shape
         self.type = type
 
 class Features(object):

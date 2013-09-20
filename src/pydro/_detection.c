@@ -84,10 +84,6 @@ PyObject * deformation_cost (PyArrayObject * pydata, float ax, float bx, float a
 PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
     npy_intp * features_dims = PyArray_DIMS(pyfeatures);
     npy_intp * filter_dims = PyArray_DIMS(pyfilter);
-    int top_pad = (filter_dims[0]-1)/2;
-    int bottom_pad = filter_dims[0] - 1 - top_pad; 
-    int left_pad = (filter_dims[1]-1)/2;
-    int right_pad = filter_dims[1] - 1 - left_pad; 
     int a, b, l;
     PyArrayObject * pyfiltered = NULL;
     npy_intp * features_stride = PyArray_STRIDES(pyfeatures);
@@ -124,8 +120,14 @@ PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, f
         return NULL;
     }
 
-    filtered_dims[0] = features_dims[0];
-    filtered_dims[1] = features_dims[1];
+    filtered_dims[0] = features_dims[0]-filter_dims[0]+1;
+    filtered_dims[1] = features_dims[1]-filter_dims[1]+1;
+
+    if (filtered_dims[0] < 1 || filtered_dims[1] < 1) {
+        PyErr_SetString(PyExc_TypeError, "Input features are too small for filter.");
+        return NULL;
+    }
+
     pyfiltered = (PyArrayObject*)PyArray_SimpleNew((npy_intp)2, filtered_dims, NPY_FLOAT);
 
     filtered_stride = PyArray_STRIDES(pyfiltered);
@@ -146,31 +148,14 @@ PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, f
             for (j = 0; j < filter_dims[1]; ++j) {
                 float weight = *(float*)PyArray_GETPTR3(pyfilter, i, j, l);
                 int k;
-                for (k = 0; k < features_dims[0]-filter_dims[0]+1; ++k) {
-                    float * out = PyArray_GETPTR2(pyfiltered, k+(filter_dims[0]-1)/2, (filter_dims[1]-1)/2);
+                for (k = 0; k < filtered_dims[0]; ++k) {
+                    float * out = PyArray_GETPTR2(pyfiltered, k, 0);
                     float * in = PyArray_GETPTR3(pyfeatures, i+k, j, l);
-                    cblas_saxpy(features_dims[1]-filter_dims[1]+1, weight, in, features_stride[1]/sizeof(float), out, filtered_stride[1]/sizeof(float));
+                    cblas_saxpy(filtered_dims[1], weight, in, features_stride[1]/sizeof(float), out, filtered_stride[1]/sizeof(float));
                 }
             }
         }
     }
-
-    /* invalidate edges */
-    for (a = 0; a < min(filtered_dims[0], top_pad); ++a)
-        for (b = 0; b < filtered_dims[1]; ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -INFINITY;
-
-    for (a = max(0, filtered_dims[0]-bottom_pad); a < filtered_dims[0]; ++a)
-        for (b = 0; b < filtered_dims[1]; ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -INFINITY;
-
-    for (a = 0; a < filtered_dims[0]; ++a)
-        for (b = 0; b < min(filtered_dims[1], left_pad); ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -INFINITY;
-
-    for (a = 0; a < filtered_dims[0]; ++a)
-        for (b = max(0, filtered_dims[1]-right_pad); b < filtered_dims[1]; ++b)
-            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -INFINITY;
 
     return PyArray_Return(pyfiltered);
 }

@@ -7,7 +7,15 @@ from collections import namedtuple
 
 Level = namedtuple('Level', 'features,scale')
 
-def BuildPyramid (image, sbin, interval, extra_interval):
+def PadLayer (layer, padx, pady):
+    padded = numpy.pad(layer, ((pady+1,pady+1), (padx+1,padx+1), (0,0)), 'constant')
+    padded[:pady+1,:,-1] = 1
+    padded[-pady-1:,:,-1] = 1
+    padded[:,:padx+1,-1] = 1
+    padded[:,-padx-1:,-1] = 1
+    return padded
+
+def BuildPyramid (image, sbin, interval, extra_interval, padx, pady):
     if len(image.shape) == 2:
         image = numpy.dstack((image,image,image))
 
@@ -21,17 +29,17 @@ def BuildPyramid (image, sbin, interval, extra_interval):
 
             if extra_interval:
                 yield Level(
-                    features=ComputeFeatures(scaled_float, sbin/4), 
+                    features=PadLayer(ComputeFeatures(scaled_float, sbin/4), padx, pady), 
                     scale=4/sc**i,
                 )
 
             yield Level(
-                features=ComputeFeatures(scaled_float, sbin/2),
+                features=PadLayer(ComputeFeatures(scaled_float, sbin/2), padx, pady),
                 scale=2/sc**i,
             )
 
             yield Level(
-                features=ComputeFeatures(scaled_float, sbin),
+                features=PadLayer(ComputeFeatures(scaled_float, sbin), padx, pady),
                 scale=1/sc**i,
             )
 
@@ -42,7 +50,7 @@ def BuildPyramid (image, sbin, interval, extra_interval):
                 scaled_float = scaled.astype(numpy.float32)
                 
                 yield Level(
-                    features=ComputeFeatures(scaled_float, sbin),
+                    features=PadLayer(ComputeFeatures(scaled_float, sbin), padx, pady),
                     scale=scale,
                 )
      

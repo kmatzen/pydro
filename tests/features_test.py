@@ -21,11 +21,26 @@ def build_pyramid_test():
     sbin = 8
     interval = 10
 
-    pyramid = BuildPyramid(image, sbin, interval, True)
+    pyramid = BuildPyramid(image, sbin, interval, True, 15, 6)
 
     for level in pyramid:
-        assert math.floor(image.shape[0]*level.scale/sbin) - level.features.shape[0] <= 2
-        assert math.floor(image.shape[1]*level.scale/sbin) - level.features.shape[1] <= 2
+        print(level.scale)
+
+        assert math.floor(image.shape[0]*level.scale/sbin) - level.features.shape[0] - 30 <= 2
+        assert math.floor(image.shape[1]*level.scale/sbin) - level.features.shape[1] - 6 <= 2
+        assert level.features.shape[2] == 32
+
+        assert (numpy.fabs(level.features[:7,:,:-1]) < 1e-6).all()
+        assert (numpy.fabs(level.features[:7,:,-1] - 1) < 1e-6).all()
+
+        assert (numpy.fabs(level.features[-7:,:,:-1]) < 1e-6).all()
+        assert (numpy.fabs(level.features[-7:,:,-1] - 1) < 1e-6).all()
+
+        assert (numpy.fabs(level.features[:,:16,:-1]) < 1e-6).all()
+        assert (numpy.fabs(level.features[:,:16,-1] - 1) < 1e-6).all()
+
+        assert (numpy.fabs(level.features[:,-16:,:-1]) < 1e-6).all()
+        assert (numpy.fabs(level.features[:,-16:,-1] - 1) < 1e-6).all()
 
     sc = 2**(1.0/interval)
     scale = pyramid[0].scale
@@ -40,7 +55,7 @@ def compare_pyramid_test():
     sbin = 8
     interval = 10
 
-    pyramid = BuildPyramid(image, sbin, interval, False)
+    pyramid = BuildPyramid(image, sbin, interval, False, 15, 6)
 
     model = LoadModel('tests/example.dpm')
     correct = scipy.io.loadmat('tests/pyramid.mat')

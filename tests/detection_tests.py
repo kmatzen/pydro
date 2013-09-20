@@ -5,6 +5,8 @@ from pydro.detection import *
 from pydro.features import *
 from pydro.io import *
 
+from pydro.io import _type_handler
+
 def detection_test():
     data = scipy.io.loadmat('tests/detection_test_data.mat')
 
@@ -26,9 +28,51 @@ def filter_model_test():
     model = LoadModel('tests/example.dpm')
 
     image = scipy.misc.imread('tests/000034.jpg')
-    pyramid = BuildPyramid(image, model.sbin, model.interval, model.features.extra_octave)
+    pyramid = BuildPyramid(image, model.sbin, model.interval, model.features.extra_octave, model.maxsize[1], model.maxsize[0])
 
     filtered_model = model.Filter(pyramid)
+
+def filter_model_small_test():
+    model = LoadModel('tests/example.dpm')
+    model.start.rules = model.start.rules[:1]
+    model.start.rules[0].rhs = model.start.rules[0].rhs[1:2]
+    model.start.rules[0].anchor = model.start.rules[0].anchor[1:2]
+
+    image = scipy.misc.imread('tests/000034.jpg')
+    pyramid = BuildPyramid(image, model.sbin, model.interval, model.features.extra_octave, model.maxsize[1], model.maxsize[0])
+
+    filtered_model = model.Filter(pyramid)
+
+    correct = scipy.io.loadmat('tests/scored.mat')
+
+    for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score)):
+        mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score[i].score
+        given = correct['model_scored'][0,0][5][0,1][2][0,i]
+
+        if mine.shape == given.shape:
+            assert numpy.fabs(given - mine).sum()/mine.size < 1e-1
+
+    for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score)):
+        mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].score
+        given = correct['model_scored'][0,0][4][0,2][0,0][10][0,i]
+
+        if mine.shape == given.shape:
+            assert numpy.fabs(given - mine).sum()/mine.size < 1e-1
+
+    for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].score)):
+        mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].score[i].score
+        given = correct['model_scored'][0,0][5][0,2][2][0,i]
+
+        if mine.shape == given.shape:
+            assert numpy.fabs(given - mine).sum()/mine.size < 1e-1
+
+    for i in xrange(len(filtered_model.start.filtered_rules[0].score)):
+        mine = filtered_model.start.filtered_rules[0].score[i].score
+        given = correct['model_scored'][0,0][4][0,0][0,0][10][0,i]
+
+        if mine.shape == given.shape:
+            if numpy.where(mine == -numpy.inf)[0].shape == numpy.where(given == -numpy.inf)[0].shape:
+                assert numpy.fabs(given[numpy.where(given != -numpy.inf)] - mine[numpy.where(mine != -numpy.inf)]).sum()/mine.size < 1e-1
 
 def deformation_test():
     data = scipy.io.loadmat('tests/deformation_example.mat')
