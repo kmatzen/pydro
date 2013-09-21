@@ -32,6 +32,20 @@ def filter_model_test():
 
     filtered_model = model.Filter(pyramid)
 
+    correct = scipy.io.loadmat('tests/scores.mat')
+
+    for i in xrange(len(filtered_model.start.score)):
+        mine = filtered_model.start.score[i].score
+        given = correct['score'][0,i]
+
+        if mine.shape == given.shape:
+            diff = given/mine
+            diff[numpy.isnan(diff)] = 0
+            diff[numpy.where(diff == numpy.inf)] = 0
+            diff[numpy.where(diff == -numpy.inf)] = 0
+            diff = diff[numpy.where(diff != 0)]
+            assert (numpy.fabs(numpy.fabs(diff).mean() - 1) < 1e-1).all()
+
 def filter_model_small_test():
     model = LoadModel('tests/example.dpm')
     model.start.rules = model.start.rules[:1]
@@ -50,21 +64,21 @@ def filter_model_small_test():
         given = correct['model_scored'][0,0][5][0,1][2][0,i]
 
         if mine.shape == given.shape:
-            assert numpy.fabs(given - mine).sum()/mine.size < 1e-1
+            assert (numpy.fabs(given - mine) < 1e-1).all()
 
     for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score)):
         mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].score
         given = correct['model_scored'][0,0][4][0,2][0,0][10][0,i]
 
         if mine.shape == given.shape:
-            assert numpy.fabs(given - mine).sum()/mine.size < 1e-1
+            assert (numpy.fabs(given - mine) < 1e-1).all()
 
     for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].score)):
         mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].score[i].score
         given = correct['model_scored'][0,0][5][0,2][2][0,i]
 
         if mine.shape == given.shape:
-            assert numpy.fabs(given - mine).sum()/mine.size < 1e-1
+            assert (numpy.fabs(given - mine) < 1e-1).all()
 
     for i in xrange(len(filtered_model.start.filtered_rules[0].score)):
         mine = filtered_model.start.filtered_rules[0].score[i].score
@@ -72,7 +86,7 @@ def filter_model_small_test():
 
         if mine.shape == given.shape:
             if numpy.where(mine == -numpy.inf)[0].shape == numpy.where(given == -numpy.inf)[0].shape:
-                assert numpy.fabs(given[numpy.where(given != -numpy.inf)] - mine[numpy.where(mine != -numpy.inf)]).sum()/mine.size < 1e-1
+                assert (numpy.fabs(given[numpy.where(given != -numpy.inf)] - mine[numpy.where(mine != -numpy.inf)]) < 1e-1).all()
 
 def deformation_test():
     data = scipy.io.loadmat('tests/deformation_example.mat')

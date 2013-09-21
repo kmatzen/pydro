@@ -24,7 +24,6 @@ def build_pyramid_test():
     pyramid = BuildPyramid(image, sbin, interval, True, 15, 6)
 
     for level in pyramid:
-        print(level.scale)
 
         assert math.floor(image.shape[0]*level.scale/sbin) - level.features.shape[0] - 30 <= 2
         assert math.floor(image.shape[1]*level.scale/sbin) - level.features.shape[1] - 6 <= 2
@@ -67,4 +66,11 @@ def compare_pyramid_test():
     for level, given in itertools.izip(pyramid, pyra[0][0][0]):
         given = given[0]
         if level.features.shape == given.shape:
-            assert (level.features - given).sum()/level.features.size < 1e-2
+            diff = level.features/given
+            diff = diff[numpy.logical_not(numpy.isnan(diff))]
+            diff = diff[diff != numpy.inf]
+            diff = diff[diff != -numpy.inf]
+            if level.scale <= 1.0:
+                assert numpy.fabs(numpy.median(numpy.fabs(diff)) - 1) < 2e-2
+            else:
+                assert numpy.fabs(numpy.median(numpy.fabs(diff)) - 1) < 1e-1

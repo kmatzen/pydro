@@ -19,27 +19,27 @@
 #include <math.h>
 
 // small value, used to avoid division by zero
-#define eps 0.0001
+#define eps 0.0001f
 
 // unit vectors used to compute gradient orientation
-static float uu[9] = {1.0000, 
-		0.9397, 
-		0.7660, 
-		0.500, 
-		0.1736, 
-		-0.1736, 
-		-0.5000, 
-		-0.7660, 
-		-0.9397};
-static float vv[9] = {0.0000, 
-		0.3420, 
-		0.6428, 
-		0.8660, 
-		0.9848, 
-		0.9848, 
-		0.8660, 
-		0.6428, 
-		0.3420};
+static float uu[9] = {1.0000f, 
+		0.9397f, 
+		0.7660f, 
+		0.500f, 
+		0.1736f, 
+		-0.1736f, 
+		-0.5000f, 
+		-0.7660f, 
+		-0.9397f};
+static float vv[9] = {0.0000f, 
+		0.3420f, 
+		0.6428f, 
+		0.8660f, 
+		0.9848f, 
+		0.9848f, 
+		0.8660f, 
+		0.6428f, 
+		0.3420f};
 
 static inline float minf(float x, float y) { return (x <= y ? x : y); }
 static inline float maxf(float x, float y) { return (x <= y ? y : x); }
@@ -137,14 +137,14 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
       }
       
       // add to 4 histograms around pixel using bilinear interpolation
-      xp = ((float)x+0.5)/(float)sbin - 0.5;
-      yp = ((float)y+0.5)/(float)sbin - 0.5;
+      xp = (x+0.5f)/(float)sbin - 0.5f;
+      yp = (y+0.5f)/(float)sbin - 0.5f;
       ixp = (int)floor(xp);
       iyp = (int)floor(yp);
       vx0 = xp-ixp;
       vy0 = yp-iyp;
-      vx1 = 1.0-vx0;
-      vy1 = 1.0-vy0;
+      vx1 = 1.0f-vx0;
+      vy1 = 1.0f-vy0;
       v = sqrt(v);
 
       if (ixp >= 0 && iyp >= 0) {
@@ -186,28 +186,28 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
   for (x = 0; x < out[1]; x++) {
     for (y = 0; y < out[0]; y++) {
       float *src, *p, n1, n2, n3, n4;
-      float t1 = 0;
-      float t2 = 0;
-      float t3 = 0;
-      float t4 = 0;
+      float t1 = 0.0f;
+      float t2 = 0.0f;
+      float t3 = 0.0f;
+      float t4 = 0.0f;
 
       p = norm + (x+1)*cells[0] + y+1;
-      n1 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
+      n1 = 1.0f / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
       p = norm + (x+1)*cells[0] + y;
-      n2 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
+      n2 = 1.0f / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
       p = norm + x*cells[0] + y+1;
-      n3 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
+      n3 = 1.0f / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
       p = norm + x*cells[0] + y;      
-      n4 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
+      n4 = 1.0f / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
 
       // contrast-sensitive features
       src = hist + (x+1)*cells[0] + (y+1);
       for (o = 0; o < 18; o++) {
-        float h1 = minf(*src * n1, 0.2);
-        float h2 = minf(*src * n2, 0.2);
-        float h3 = minf(*src * n3, 0.2);
-        float h4 = minf(*src * n4, 0.2);
-        *(float*)PyArray_GETPTR3(pyfeat, y, x, o) = 0.5 * (h1 + h2 + h3 + h4);
+        float h1 = minf(*src * n1, 0.2f);
+        float h2 = minf(*src * n2, 0.2f);
+        float h3 = minf(*src * n3, 0.2f);
+        float h4 = minf(*src * n4, 0.2f);
+        *(float*)PyArray_GETPTR3(pyfeat, y, x, o) = 0.5f * (h1 + h2 + h3 + h4);
         t1 += h1;
         t2 += h2;
         t3 += h3;
@@ -219,22 +219,22 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
       src = hist + (x+1)*cells[0] + (y+1);
       for (o = 0; o < 9; o++) {
         float sum = *src + *(src + 9*cells[0]*cells[1]);
-        float h1 = minf(sum * n1, 0.2);
-        float h2 = minf(sum * n2, 0.2);
-        float h3 = minf(sum * n3, 0.2);
-        float h4 = minf(sum * n4, 0.2);
-        *(float*)PyArray_GETPTR3(pyfeat, y, x, o+18) = 0.5 * (h1 + h2 + h3 + h4);
+        float h1 = minf(sum * n1, 0.2f);
+        float h2 = minf(sum * n2, 0.2f);
+        float h3 = minf(sum * n3, 0.2f);
+        float h4 = minf(sum * n4, 0.2f);
+        *(float*)PyArray_GETPTR3(pyfeat, y, x, o+18) = 0.5f * (h1 + h2 + h3 + h4);
         src += cells[0]*cells[1];
       }
 
       // texture features
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 27) = 0.2357 * t1;
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 28) = 0.2357 * t2;
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 29) = 0.2357 * t3;
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 30) = 0.2357 * t4;
+      *(float*)PyArray_GETPTR3(pyfeat, y, x, 27) = 0.2357f * t1;
+      *(float*)PyArray_GETPTR3(pyfeat, y, x, 28) = 0.2357f * t2;
+      *(float*)PyArray_GETPTR3(pyfeat, y, x, 29) = 0.2357f * t3;
+      *(float*)PyArray_GETPTR3(pyfeat, y, x, 30) = 0.2357f * t4;
 
       // truncation feature
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 31) = 0;
+      *(float*)PyArray_GETPTR3(pyfeat, y, x, 31) = 0.0f;
     }
   }
 

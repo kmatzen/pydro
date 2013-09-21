@@ -10,17 +10,17 @@ __all__ = ['Offset', 'Block', 'Def', 'DeformationRule', 'Features', 'Filter', 'L
 Score = namedtuple('Score', 'score,scale')
 
 def _pad_all (matrices):
-    matrices = [m if isinstance(m, numpy.ndarray) else numpy.array([[m]],dtype=numpy.float32) for m in matrices]
-
     size_x = 0
     size_y = 0
     for matrix in matrices:
-        size_x = max(size_x, matrix.shape[1])
-        size_y = max(size_y, matrix.shape[0])
+        if isinstance(matrix, numpy.ndarray):
+            size_x = max(size_x, matrix.shape[1])
+            size_y = max(size_y, matrix.shape[0])
     assert size_x > 0
     assert size_y > 0
 
-    return [numpy.pad(m, ((0, size_y-m.shape[0]), (0, size_x-m.shape[1])), mode='constant', constant_values=(-numpy.inf,)) for m in matrices]
+    return [numpy.pad(m, ((0, size_y-m.shape[0]), (0, size_x-m.shape[1])), mode='constant', constant_values=(-numpy.inf,)) 
+            if isinstance(m, numpy.ndarray) else m*numpy.ones((size_y,size_x),dtype=numpy.float32) for m in matrices]
 
 class Model(object):
     def __init__ (self, clss, year, note, filters, rules, symbols, start, maxsize, minsize,
@@ -131,7 +131,7 @@ class FilteredStructuralRule(StructuralRule):
 
         loc_scores = loc_w.dot(loc_f).flatten()
 
-        self.score = [numpy.array([[float(bias + loc_score)]]) for loc_score in loc_scores]
+        self.score = [float(bias + loc_score) for loc_score in loc_scores]
       
         for anchor, filtered_symbol in itertools.izip(self.anchor, self.filtered_rhs):
             ax, ay, ds = anchor
