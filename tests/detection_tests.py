@@ -34,8 +34,8 @@ def filter_model_test():
 
     correct = scipy.io.loadmat('tests/scores.mat')
 
-    for i in xrange(len(filtered_model.start.score)):
-        mine = filtered_model.start.score[i].score
+    for i in xrange(len(filtered_model.filtered_start.score)):
+        mine = filtered_model.filtered_start.score[i].score
         given = correct['score'][0,i]
 
         if mine.shape == given.shape:
@@ -59,29 +59,29 @@ def filter_model_small_test():
 
     correct = scipy.io.loadmat('tests/scored.mat')
 
-    for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score)):
-        mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score[i].score
+    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score)):
+        mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score[i].score
         given = correct['model_scored'][0,0][5][0,1][2][0,i]
 
         if mine.shape == given.shape:
             assert (numpy.fabs(given - mine) < 1e-1).all()
 
-    for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score)):
-        mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].score
+    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score)):
+        mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].score
         given = correct['model_scored'][0,0][4][0,2][0,0][10][0,i]
 
         if mine.shape == given.shape:
             assert (numpy.fabs(given - mine) < 1e-1).all()
 
-    for i in xrange(len(filtered_model.start.filtered_rules[0].filtered_rhs[0].score)):
-        mine = filtered_model.start.filtered_rules[0].filtered_rhs[0].score[i].score
+    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score)):
+        mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score[i].score
         given = correct['model_scored'][0,0][5][0,2][2][0,i]
 
         if mine.shape == given.shape:
             assert (numpy.fabs(given - mine) < 1e-1).all()
 
-    for i in xrange(len(filtered_model.start.filtered_rules[0].score)):
-        mine = filtered_model.start.filtered_rules[0].score[i].score
+    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].score)):
+        mine = filtered_model.filtered_start.filtered_rules[0].score[i].score
         given = correct['model_scored'][0,0][4][0,0][0,0][10][0,i]
 
         if mine.shape == given.shape:

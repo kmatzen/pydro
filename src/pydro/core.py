@@ -23,14 +23,19 @@ def _pad_all (matrices):
             if isinstance(m, numpy.ndarray) else m*numpy.ones((size_y,size_x),dtype=numpy.float32) for m in matrices]
 
 class Model(object):
-    def __init__ (self, clss, year, note, filters, rules, symbols, start, maxsize, minsize,
-                    interval, sbin, thresh, type, blocks, features, stats):
+    def __init__ (self, clss, year, note, start, maxsize, minsize,
+                    interval, sbin, thresh, type, features, stats, rules=None, symbols=None, filters=None, blocks=None):
+        if rules is not None:
+            self.rules = rules
+        if symbols is not None:
+            self.symbols = symbols
+        if filters is not None:
+            self.filters = filters
+        if blocks is not None:
+            self.blocks = blocks
         self.clss = clss
         self.year = year
         self.note = note
-        self.filters = filters
-        self.rules = rules
-        self.symbols = symbols
         self.start = start
         self.maxsize = maxsize
         self.minsize = minsize
@@ -38,16 +43,20 @@ class Model(object):
         self.sbin = sbin
         self.thresh = thresh
         self.type = type
-        self.blocks = blocks
         self.features = features
         self.stats = stats
 
     def Filter (self, pyramid):
-        filtered_model = copy.deepcopy(self)
+        return FilteredModel (self, pyramid)
 
-        filtered_model.start = filtered_model.start.Filter(pyramid, filtered_model)
+class FilteredModel (Model):
+    def __init__ (self, model, pyramid):
+        super(FilteredModel, self).__init__ (**model.__dict__)
 
-        return filtered_model
+        self.filtered_start = self.start.Filter(pyramid, self)
+
+    def Parse (self, threshold, limit):
+        pass
 
 class Filter(object):
     def __init__ (self, blocklabel, size, flip, symbol):
