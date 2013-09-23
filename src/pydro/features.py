@@ -7,15 +7,6 @@ import sys
 
 Level = namedtuple('Level', 'features,scale')
 
-def PadLayer (layer, padx, pady):
-    return layer
-    padded = numpy.pad(layer, ((pady+1,pady+1), (padx+1,padx+1), (0,0)), 'constant')
-    padded[:pady+1,:,-1] = 1
-    padded[-pady-1:,:,-1] = 1
-    padded[:,:padx+1,-1] = 1
-    padded[:,-padx-1:,-1] = 1
-    return padded
-
 def BuildPyramid (image, sbin, interval, extra_interval, padx, pady):
     if len(image.shape) == 2:
         image = numpy.dstack((image,image,image))
