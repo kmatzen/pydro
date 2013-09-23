@@ -406,14 +406,10 @@ class FilteredSymbol(Symbol):
 
         if self.filter is not None:
             filter = self.filter.blocklabel.w
-            self.filtered = FilterPyramid (pyramid, filter)
+            self.filtered = FilterPyramid (pyramid, filter, filtered_size)
             assert len(filtered_size) == len(self.filtered)
-            padded = [
-                numpy.pad(f, ((0,size[0]-f.shape[0]), (0,size[1]-f.shape[1])), mode='constant', constant_values=(-numpy.inf,))
-                for size,f in itertools.izip(filtered_size, self.filtered)
-            ]
-            assert len(pyramid) == len(padded)
-            self.score = [Score(scale=level.scale, score=filtered) for level, filtered in itertools.izip(pyramid, padded)]
+            assert len(pyramid) == len(self.filtered)
+            self.score = [Score(scale=level.scale, score=filtered) for level, filtered in itertools.izip(pyramid, self.filtered)]
             self.filtered_rules = []
         else:
             self.filtered_rules = [r.Filter(pyramid, model, filtered_size) for r in self.rules]
