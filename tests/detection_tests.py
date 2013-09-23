@@ -134,7 +134,7 @@ def deformation_test():
     assert (Ix + 1 == data['Ix']).all()
     assert (Iy + 1 == data['Iy']).all()
 
-def deformation_test2():
+def deformation2_test():
     data = scipy.io.loadmat('tests/deformation_example.mat')
 
     values = numpy.array(data['values'], dtype=numpy.float32, order='C')

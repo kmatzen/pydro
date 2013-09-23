@@ -4,10 +4,11 @@
 
 #include <math.h>
 
-#ifdef __USE_MKL__
+#ifdef __INTEL_COMPILER
 #include <mkl_cblas.h>
 #else
 #include <cblas.h>
+#define kmp_set_blocktime(k) 
 #endif
 
 static inline int min (int a, int b) { return a < b ? a : b; }
@@ -218,6 +219,7 @@ static PyObject * FilterImages(PyObject * self, PyObject * args)
         }
     }
 
+    kmp_set_blocktime(0);
     #pragma omp parallel for schedule(dynamic) 
     for (i = 0; i < numfilters; ++i) { 
         PyArrayObject * pyfeatures = (PyArrayObject*)objs[i];
