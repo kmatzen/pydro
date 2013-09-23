@@ -313,7 +313,7 @@ class FilteredStructuralRule(StructuralRule):
         loc_scores = loc_w.dot(loc_f).flatten()
 
         assert len(filtered_size) == len(loc_scores.flatten())
-        self.score = [float(bias + loc_score)*numpy.ones(size) for size,loc_score in itertools.izip(filtered_size,loc_scores.flatten())]
+        self.score = [float(bias + loc_score)*numpy.ones(size, dtype=numpy.float32) for size,loc_score in itertools.izip(filtered_size,loc_scores.flatten())]
       
         assert len(self.anchor) == len(self.filtered_rhs)
         for anchor, filtered_symbol in itertools.izip(self.anchor, self.filtered_rhs):
@@ -420,11 +420,11 @@ class FilteredSymbol(Symbol):
 
             self.score = self.filtered_rules[0].score
             for filtered_rule in self.filtered_rules[1:]:
-                for level in xrange(len(filtered_rule.score)):
-                    self.score[level] = Score(
-                        scale=self.score[level].scale, 
-                        score=numpy.max(numpy.dstack((self.score[level].score, filtered_rule.score[level].score)), axis=2)
-                    )
+                self.score = [Score(
+                    scale=level.scale, 
+                    score=numpy.max(numpy.dstack((level.score, f.score)), axis=2),
+                )
+                for level, f in itertools.izip(self.score, filtered_rule.score)]
 
         assert self.score is not None or self.filtered is not None
 
