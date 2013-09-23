@@ -22,7 +22,7 @@
 #define eps 0.0001
 
 // unit vectors used to compute gradient orientation
-static double uu[9] = {1.0000, 
+static float uu[9] = {1.0000, 
 		0.9397, 
 		0.7660, 
 		0.500, 
@@ -31,7 +31,7 @@ static double uu[9] = {1.0000,
 		-0.5000, 
 		-0.7660, 
 		-0.9397};
-static double vv[9] = {0.0000, 
+static float vv[9] = {0.0000, 
 		0.3420, 
 		0.6428, 
 		0.8660, 
@@ -41,8 +41,8 @@ static double vv[9] = {0.0000,
 		0.6428, 
 		0.3420};
 
-static inline double minf(double x, double y) { return (x <= y ? x : y); }
-static inline double maxf(double x, double y) { return (x <= y ? y : x); }
+static inline float minf(float x, float y) { return (x <= y ? x : y); }
+static inline float maxf(float x, float y) { return (x <= y ? y : x); }
 
 static inline int mini(int x, int y) { return (x <= y ? x : y); }
 static inline int maxi(int x, int y) { return (x <= y ? y : x); }
@@ -55,8 +55,8 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
   int cells[2];
   int visible[2];
   npy_intp out[3];
-  double *hist = NULL;
-  double *norm = NULL;
+  float *hist = NULL;
+  float *norm = NULL;
   PyArrayObject *pyfeat = NULL;
   int x, y, l;  
   int o;
@@ -69,10 +69,10 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
   }
 
   // memory for caching orientation histograms & their norms
-  cells[0] = (int)round((double)dims[0]/sbin);
-  cells[1] = (int)round((double)dims[1]/sbin);
-  hist = (double*)calloc(cells[0]*cells[1]*18, sizeof(double));
-  norm = (double *)calloc(cells[0]*cells[1], sizeof(double));
+  cells[0] = (int)round((float)dims[0]/sbin);
+  cells[1] = (int)round((float)dims[1]/sbin);
+  hist = (float*)calloc(cells[0]*cells[1]*18, sizeof(float));
+  norm = (float *)calloc(cells[0]*cells[1], sizeof(float));
 
   // memory for HOG features
   out[0] = maxi(cells[0]-2, 0)+2*pad_y;
@@ -89,14 +89,14 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
       int ypos = mini(y, dims[0]-2);
 
       // first color channel
-      double dy = *(float*)PyArray_GETPTR3(pyimage, ypos+1, xpos, 0) - *(float*)PyArray_GETPTR3(pyimage, ypos-1, xpos, 0);
-      double dx = *(float*)PyArray_GETPTR3(pyimage, ypos, xpos+1, 0) - *(float*)PyArray_GETPTR3(pyimage, ypos, xpos-1, 0);
-      double v = dx*dx + dy*dy;
+      float dy = *(float*)PyArray_GETPTR3(pyimage, ypos+1, xpos, 0) - *(float*)PyArray_GETPTR3(pyimage, ypos-1, xpos, 0);
+      float dx = *(float*)PyArray_GETPTR3(pyimage, ypos, xpos+1, 0) - *(float*)PyArray_GETPTR3(pyimage, ypos, xpos-1, 0);
+      float v = dx*dx + dy*dy;
 
-      double dy2, dx2, v2, dy3, dx3, v3;
-      double best_dot = 0;
+      float dy2, dx2, v2, dy3, dx3, v3;
+      float best_dot = 0;
       int best_o = 0;
-      double xp, yp, vx0, vy0, vx1, vy1;
+      float xp, yp, vx0, vy0, vx1, vy1;
       int ixp, iyp; 
        
       // second color channel
@@ -123,7 +123,7 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
 
       // snap to one of 18 orientations
       for (o = 0; o < 9; o++) {
-        double dot = uu[o]*dx + vv[o]*dy;
+        float dot = uu[o]*dx + vv[o]*dy;
         if (dot > best_dot) {
           best_dot = dot;
           best_o = o;
@@ -134,8 +134,8 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
       }
       
       // add to 4 histograms around pixel using bilinear interpolation
-      xp = (x+0.5)/(double)sbin - 0.5;
-      yp = (y+0.5)/(double)sbin - 0.5;
+      xp = (x+0.5)/(float)sbin - 0.5;
+      yp = (y+0.5)/(float)sbin - 0.5;
       ixp = (int)floor(xp);
       iyp = (int)floor(yp);
       vx0 = xp-ixp;
@@ -168,10 +168,10 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
 
   // compute energy in each block by summing over orientations
   for (o = 0; o < 9; o++) {
-    double *src1 = hist + o*cells[0]*cells[1];
-    double *src2 = hist + (o+9)*cells[0]*cells[1];
-    double *dst = norm;
-    double *end = norm + cells[1]*cells[0];
+    float *src1 = hist + o*cells[0]*cells[1];
+    float *src2 = hist + (o+9)*cells[0]*cells[1];
+    float *dst = norm;
+    float *end = norm + cells[1]*cells[0];
     while (dst < end) {
       *(dst++) += (*src1 + *src2) * (*src1 + *src2);
       src1++;
@@ -182,11 +182,11 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
   // compute features
   for (x = 0; x < out[1]-pad_x*2; x++) {
     for (y = 0; y < out[0]-pad_y*2; y++) {
-      double *src, *p, n1, n2, n3, n4;
-      double t1 = 0.0;
-      double t2 = 0.0;
-      double t3 = 0.0;
-      double t4 = 0.0;
+      float *src, *p, n1, n2, n3, n4;
+      float t1 = 0.0;
+      float t2 = 0.0;
+      float t3 = 0.0;
+      float t4 = 0.0;
 
       p = norm + (x+1)*cells[0] + y+1;
       n1 = 1.0 / sqrt(*p + *(p+1) + *(p+cells[0]) + *(p+cells[0]+1) + eps);
@@ -200,10 +200,10 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
       // contrast-sensitive features
       src = hist + (x+1)*cells[0] + (y+1);
       for (o = 0; o < 18; o++) {
-        double h1 = minf(*src * n1, 0.2);
-        double h2 = minf(*src * n2, 0.2);
-        double h3 = minf(*src * n3, 0.2);
-        double h4 = minf(*src * n4, 0.2);
+        float h1 = minf(*src * n1, 0.2);
+        float h2 = minf(*src * n2, 0.2);
+        float h3 = minf(*src * n3, 0.2);
+        float h4 = minf(*src * n4, 0.2);
         *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, o) = 0.5 * (h1 + h2 + h3 + h4);
         t1 += h1;
         t2 += h2;
@@ -215,11 +215,11 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
       // contrast-insensitive features
       src = hist + (x+1)*cells[0] + (y+1);
       for (o = 0; o < 9; o++) {
-        double sum = *src + *(src + 9*cells[0]*cells[1]);
-        double h1 = minf(sum * n1, 0.2);
-        double h2 = minf(sum * n2, 0.2);
-        double h3 = minf(sum * n3, 0.2);
-        double h4 = minf(sum * n4, 0.2);
+        float sum = *src + *(src + 9*cells[0]*cells[1]);
+        float h1 = minf(sum * n1, 0.2);
+        float h2 = minf(sum * n2, 0.2);
+        float h3 = minf(sum * n3, 0.2);
+        float h4 = minf(sum * n4, 0.2);
         *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, o+18) = 0.5 * (h1 + h2 + h3 + h4);
         src += cells[0]*cells[1];
       }
