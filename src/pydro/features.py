@@ -1,9 +1,9 @@
 from pydro._features import *
 
-import scipy.misc
 import numpy
 import math
 from collections import namedtuple
+import sys
 
 Level = namedtuple('Level', 'features,scale')
 
@@ -18,6 +18,7 @@ def PadLayer (layer, padx, pady):
 def BuildPyramid (image, sbin, interval, extra_interval, padx, pady):
     if len(image.shape) == 2:
         image = numpy.dstack((image,image,image))
+    image = image.astype(numpy.float32)
 
     sc = 2**(1.0/interval)
     max_scale = 1 + int(math.floor(math.log(min(image.shape[0:2])/(5.0*sbin))/math.log(sc)))
@@ -25,36 +26,35 @@ def BuildPyramid (image, sbin, interval, extra_interval, padx, pady):
     def pyramid_generator():
         for i in xrange(interval):
             scale = 1/(sc**i)
-            x = int(round(scale*image.shape[1]))
-            y = int(round(scale*image.shape[0]))
-            scaled = scipy.misc.imresize(image, (y,x))
-            scaled_float = scaled.astype(numpy.float32)
+            x = int(round(image.shape[1]*scale))
+            y = int(round(image.shape[0]*scale))
+            sys.stdout.flush()
+            scaled = ResizeImage(image, y,x)
 
             if extra_interval:
                 yield Level(
-                    features=PadLayer(ComputeFeatures(scaled_float, sbin/4), padx, pady), 
+                    features=PadLayer(ComputeFeatures(scaled, sbin/4), padx, pady), 
                     scale=4*scale,
                 )
 
             yield Level(
-                features=PadLayer(ComputeFeatures(scaled_float, sbin/2), padx, pady),
+                features=PadLayer(ComputeFeatures(scaled, sbin/2), padx, pady),
                 scale=2*scale,
             )
 
             yield Level(
-                features=PadLayer(ComputeFeatures(scaled_float, sbin), padx, pady),
+                features=PadLayer(ComputeFeatures(scaled, sbin), padx, pady),
                 scale=scale,
             )
 
             for j in xrange(i+interval, max_scale, interval):
-                scale /= 2
-                x /= 2
-                y /= 2
-                scaled = scipy.misc.imresize(image, (y,x))
-                scaled_float = scaled.astype(numpy.float32)
+                scale *= 0.5
+                x = int(round(x*0.5))
+                y = int(round(y*0.5))
+                scaled = ResizeImage(image, y,x)
                 
                 yield Level(
-                    features=PadLayer(ComputeFeatures(scaled_float, sbin), padx, pady),
+                    features=PadLayer(ComputeFeatures(scaled, sbin), padx, pady),
                     scale=scale,
                 )
      

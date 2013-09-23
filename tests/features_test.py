@@ -7,6 +7,12 @@ import itertools
 from pydro.features import *
 from pydro.io import *
 
+def resize_test():
+    image = scipy.misc.imread('tests/lenna.png').astype(numpy.float32)
+
+    image_resized = ResizeImage(image, image.shape[0]/2, image.shape[1]/2)
+    
+
 def features_test():
     lenna_image = scipy.misc.imread('tests/lenna.png').astype(numpy.float32)
     lenna_features = ComputeFeatures(lenna_image, 8)
@@ -51,12 +57,9 @@ def build_pyramid_test():
 def compare_pyramid_test():
     image = scipy.misc.imread('tests/000034.jpg')
 
-    sbin = 8
-    interval = 10
-
-    pyramid = BuildPyramid(image, sbin, interval, False, 15, 6)
-
     model = LoadModel('tests/example.dpm')
+    pyramid = BuildPyramid(image, model.features.sbin, model.interval, False, 15, 6)
+
     correct = scipy.io.loadmat('tests/pyramid.mat')
 
     pyra = correct['pyra']
@@ -65,12 +68,23 @@ def compare_pyramid_test():
 
     for level, given in itertools.izip(pyramid, pyra[0][0][0]):
         given = given[0]
-        if level.features.shape == given.shape:
-            diff = level.features/given
-            diff = diff[numpy.logical_not(numpy.isnan(diff))]
-            diff = diff[diff != numpy.inf]
-            diff = diff[diff != -numpy.inf]
-            if level.scale <= 1.0:
-                assert numpy.fabs(numpy.median(numpy.fabs(diff)) - 1) < 2e-2
-            else:
-                assert numpy.fabs(numpy.median(numpy.fabs(diff)) - 1) < 1e-1
+        assert level.features.shape == given.shape
+        diff = level.features/given
+        diff = diff[numpy.logical_not(numpy.isnan(diff))]
+        diff = diff[diff != numpy.inf]
+        diff = diff[diff != -numpy.inf]
+        if level.scale > 1:
+            assert numpy.fabs(numpy.median(numpy.fabs(diff))-1) < 1e-2
+        else:
+            assert numpy.fabs(numpy.median(numpy.fabs(diff))-1) < 1e-1
+
+def resize_test():
+    correct = scipy.io.loadmat('tests/resize_test.mat')
+
+    im = correct['im']
+    im_small_correct = correct['im_small']
+
+    im = numpy.array(im, dtype=numpy.float32, order='C')
+    im_small_mine = ResizeImage(im.astype(numpy.float32), im_small_correct.shape[0], im_small_correct.shape[1])
+
+    assert numpy.fabs(im_small_correct - im_small_mine).max() < 1e-2

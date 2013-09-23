@@ -38,13 +38,26 @@ def filter_model_test():
         mine = filtered_model.filtered_start.score[i].score
         given = correct['score'][0,i]
 
-        if mine.shape == given.shape:
-            diff = given/mine
-            diff[numpy.isnan(diff)] = 0
-            diff[numpy.where(diff == numpy.inf)] = 0
-            diff[numpy.where(diff == -numpy.inf)] = 0
-            diff = diff[numpy.where(diff != 0)]
-            assert (numpy.fabs(numpy.fabs(diff).mean() - 1) < 1e-1).all()
+        if not isinstance(mine, numpy.ndarray):
+            assert mine == -numpy.inf
+            assert (given == -numpy.inf).all()
+            continue
+        Iy1, Ix1 = numpy.where(mine == -numpy.inf)
+        Iy2, Ix2 = numpy.where(given == -numpy.inf)
+
+
+        assert (Iy1 == Iy2).all()
+        assert (Ix1 == Ix2).all()
+
+        diff = given - mine
+        diff = diff[numpy.logical_not(numpy.isnan(diff))]
+
+        if diff.size > 0:
+            print(filtered_model.filtered_start.score[i].scale, numpy.fabs(diff).max())
+            if filtered_model.filtered_start.score[i].scale > 1:
+                assert numpy.fabs(diff).max() < 2e-1
+            else:
+                assert numpy.fabs(diff).max() < 2e-1
 
 def filter_model_small_test():
     model = LoadModel('tests/example.dpm')
@@ -63,43 +76,70 @@ def filter_model_small_test():
         mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score[i].score
         given = correct['model_scored'][0,0][5][0,1][2][0,i]
 
-        if mine.shape == given.shape:
-            assert (numpy.fabs(given - mine) < 1e-1).all()
+        if filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score[i].scale > 1:
+            assert numpy.fabs(given - mine).max() < 1e-1
+        else:
+            assert numpy.fabs(given - mine).max() < 1e-2
 
     for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score)):
         mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].score
         given = correct['model_scored'][0,0][4][0,2][0,0][10][0,i]
 
-        if mine.shape == given.shape:
-            assert (numpy.fabs(given - mine) < 1e-1).all()
+        if filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].scale > 1:
+            assert numpy.fabs(given - mine).max() < 1e-1
+        else:
+            assert numpy.fabs(given - mine).max() < 1e-2
 
     for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score)):
         mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score[i].score
         given = correct['model_scored'][0,0][5][0,2][2][0,i]
 
-        if mine.shape == given.shape:
-            assert (numpy.fabs(given - mine) < 1e-1).all()
+        if filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score[i].scale > 1:
+            assert numpy.fabs(given - mine).max() < 1e-1
+        else:
+            assert numpy.fabs(given - mine).max() < 1e-2
 
     for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].score)):
         mine = filtered_model.filtered_start.filtered_rules[0].score[i].score
         given = correct['model_scored'][0,0][4][0,0][0,0][10][0,i]
 
-        if mine.shape == given.shape:
-            if numpy.where(mine == -numpy.inf)[0].shape == numpy.where(given == -numpy.inf)[0].shape:
-                assert (numpy.fabs(given[numpy.where(given != -numpy.inf)] - mine[numpy.where(mine != -numpy.inf)]) < 1e-1).all()
+        if not isinstance(mine, numpy.ndarray):
+            assert mine == -numpy.inf
+            assert (given == -numpy.inf).all()
+            continue
+
+        Iy1, Ix1 = numpy.where(mine == -numpy.inf)
+        Iy2, Ix2 = numpy.where(given == -numpy.inf)
+
+        assert (Iy1 == Iy2).all()
+        assert (Ix1 == Ix2).all()
+
+        diff = given - mine
+        diff = diff[numpy.logical_not(numpy.isnan(diff))]
+
+        if diff.size > 0:
+            print(numpy.fabs(diff).max())
+            if filtered_model.filtered_start.filtered_rules[0].score[i].scale > 1:
+                assert numpy.fabs(diff).max() < 1e-1
+            else:
+                assert numpy.fabs(diff).max() < 2e-2
 
 def deformation_test():
     data = scipy.io.loadmat('tests/deformation_example.mat')
 
     values = numpy.array(data['values'], dtype=numpy.float32, order='C')
-    deformed = DeformationCost(values, 1, 1, 1, 1, 4)
+    deformed, Ix, Iy = DeformationCost(values, 1, 1, 1, 1, 4)
 
     assert (numpy.fabs(deformed - data['A']) < 1e-6).all()
+    assert (Ix + 1 == data['Ix']).all()
+    assert (Iy + 1 == data['Iy']).all()
 
-def deformation_test():
+def deformation_test2():
     data = scipy.io.loadmat('tests/deformation_example.mat')
 
     values = numpy.array(data['values'], dtype=numpy.float32, order='C')
-    deformed = DeformationCost(values, 0.1, 0.2, 0.1, 0.02, 4)
+    deformed, Ix, Iy = DeformationCost(values, 0.1, 0.2, 0.1, 0.02, 4)
 
     assert (numpy.fabs(deformed - data['A2']) < 1e-6).all()
+    assert (Ix + 1 == data['Ix2']).all()
+    assert (Iy + 1 == data['Iy2']).all()

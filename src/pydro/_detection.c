@@ -61,24 +61,33 @@ PyObject * deformation_cost (PyArrayObject * pydata, float ax, float bx, float a
   }
   
   PyArrayObject * pydeformed = (PyArrayObject*)PyArray_SimpleNew((npy_intp)2, dims, NPY_FLOAT);
+  PyArrayObject * pyIx = (PyArrayObject*)PyArray_SimpleNew((npy_intp)2, dims, NPY_INT32);
+  PyArrayObject * pyIy = (PyArrayObject*)PyArray_SimpleNew((npy_intp)2, dims, NPY_INT32);
 
   float *tmpM = (float *)calloc(dims[0]*dims[1], sizeof(float));
-  int32_t *tmpIx = (int32_t *)calloc(dims[0]*dims[1], sizeof(int32_t));
-  int32_t *tmpIy = (int32_t *)calloc(dims[0]*dims[1], sizeof(int32_t));
+  int32_t *tmpIx = (int32_t*)calloc(dims[0]*dims[1], sizeof(int32_t));
+  int32_t *tmpIy = (int32_t*)calloc(dims[0]*dims[1], sizeof(int32_t));
 
   int x, y;
 
   for (y = 0; y < dims[0]; y++)
-    max_filter_1d(PyArray_GETPTR2(pydata, y, 0), tmpM+y*dims[1], tmpIx+y*dims[1], s, 1, dims[1], ax, bx);
+    max_filter_1d((float*)PyArray_GETPTR2(pydata, y, 0), tmpM+y*dims[1], tmpIx+y*dims[1], s, 1, dims[1], ax, bx);
 
   for (x = 0; x < dims[1]; x++)
-    max_filter_1d(tmpM+x, PyArray_GETPTR2(pydeformed, 0, x), tmpIy+x, s, dims[1], dims[0], ay, by);
+    max_filter_1d(tmpM+x, (float*)PyArray_GETPTR2(pydeformed, 0, x), tmpIy+x, s, dims[1], dims[0], ay, by);
+
+  for (x = 0; x < dims[1]; ++x) {
+    for (y = 0; y < dims[0]; ++y) {
+      *(int32_t*)PyArray_GETPTR2(pyIy, y, x) = tmpIy[y*dims[1]+x];
+      *(int32_t*)PyArray_GETPTR2(pyIx, y, x) = tmpIx[tmpIy[y*dims[1]+x]*dims[1]+x];
+    }
+  }
 
   free(tmpM);
   free(tmpIx);
   free(tmpIy);
 
-  return PyArray_Return(pydeformed);
+  return Py_BuildValue("OOO", pydeformed, pyIx, pyIy);
 }
 
 PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
