@@ -78,7 +78,12 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
   out[0] = maxi(cells[0]-2, 0)+2*pad_y;
   out[1] = maxi(cells[1]-2, 0)+2*pad_x;
   out[2] = 27+4+1;
-  pyfeat = (PyArrayObject*)PyArray_SimpleNew((npy_intp)3, out, NPY_FLOAT);
+
+  npy_intp strides [3] = { out[1]*out[2]*sizeof(float), sizeof(float), out[1]*sizeof(float) };
+  pyfeat = (PyArrayObject*)PyArray_New(
+    &PyArray_Type, (npy_intp)3, out, NPY_FLOAT,
+    strides, NULL, 0, 0, NULL
+  );
   
   visible[0] = cells[0]*sbin;
   visible[1] = cells[1]*sbin;
