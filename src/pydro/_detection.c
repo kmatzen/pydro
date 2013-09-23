@@ -180,7 +180,7 @@ PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilt
         }
     }
 
-    for (a = 0; a < filtered_dims[0]; ++a) {
+    for (a = 0; a < tight_height; ++a) {
         for (b = tight_width; b < filtered_dims[1]; ++b) {
             *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -INFINITY;
         }
