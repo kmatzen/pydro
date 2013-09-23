@@ -150,6 +150,8 @@ PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, f
 
     /* iterate over filter which should be tiny compared to the image */
     int i;
+    int stride_src = features_stride[1]/sizeof(float);
+    int stride_dst = filtered_stride[1]/sizeof(float);
     for (i = 0; i < filter_dims[0]; ++i) {
         int j;
         for (j = 0; j < filter_dims[1]; ++j) {
@@ -160,7 +162,7 @@ PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, f
                 for (l = 0; l < 32; ++l) {
                     float weight = *(float*)PyArray_GETPTR3(pyfilter, i, j, l);
                     float * in = (float*)PyArray_GETPTR3(pyfeatures, i+k, j, l);
-                    cblas_saxpy(filtered_dims[1], weight, in, features_stride[1]/sizeof(float), out, filtered_stride[1]/sizeof(float));
+                    cblas_saxpy(filtered_dims[1], weight, in, stride_src, out, stride_dst);
                 }
             }
         }
