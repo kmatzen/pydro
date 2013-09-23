@@ -52,7 +52,8 @@ pydro_detection = Extension(
         '-O3', 
         '-Wall', 
         '-Werror', 
-        '-Wno-long-long'
+        '-Wno-long-long',
+        '-funroll-loops',
     ]+blas_flags,
 
     include_dirs=[

@@ -148,17 +148,17 @@ PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, f
         }
     }
 
-    /* for each layer */
-    for (l = 0; l < 32; ++l) {
-        /* iterate over filter which should be tiny compared to the image */
-        int i;
-        for (i = 0; i < filter_dims[0]; ++i) {
-            int j;
-            for (j = 0; j < filter_dims[1]; ++j) {
-                float weight = *(float*)PyArray_GETPTR3(pyfilter, i, j, l);
-                int k;
-                for (k = 0; k < filtered_dims[0]; ++k) {
-                    float * out = PyArray_GETPTR2(pyfiltered, k, 0);
+    /* iterate over filter which should be tiny compared to the image */
+    int i;
+    for (i = 0; i < filter_dims[0]; ++i) {
+        int j;
+        for (j = 0; j < filter_dims[1]; ++j) {
+            int k;
+            for (k = 0; k < filtered_dims[0]; ++k) {
+                float * out = PyArray_GETPTR2(pyfiltered, k, 0);
+                /* for each layer */
+                for (l = 0; l < 32; ++l) {
+                    float weight = *(float*)PyArray_GETPTR3(pyfilter, i, j, l);
                     float * in = PyArray_GETPTR3(pyfeatures, i+k, j, l);
                     cblas_saxpy(filtered_dims[1], weight, in, features_stride[1]/sizeof(float), out, filtered_stride[1]/sizeof(float));
                 }
