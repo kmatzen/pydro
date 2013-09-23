@@ -1,33 +1,57 @@
 from distutils.core import setup, Extension
 import numpy
 
-use_mkl = False
-if use_mkl:
-    blas_libs = [
+from intelccompiler import *
+
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--compiler', default='gcc')
+args, unknown = parser.parse_known_args()
+
+if args.compiler == 'intelem':
+    libs = [
         'mkl_rt', 
         'mkl_intel_ilp64', 
-        'mkl_gnu_thread', 
-        'mkl_core'
+        'mkl_sequential', 
+        'mkl_core',
+        'iomp5',
     ]
-    blas_flags = [
-        '-D__USE_MKL__', 
-        '-DMKL_ILP64'
+
+    flags = [
+        '-DMKL_ILP64',
+        '-fp-model fast',
     ]
-    blas_library_dirs = [
+
+    library_dirs = [
         '/usr/local/intel/composer_xe_2013.5.192/mkl/lib/intel64',
+        '/usr/local/intel/lib/intel64',
     ]
-    blas_include_dirs = [
+
+    include_dirs = [
         '/usr/local/intel/composer_xe_2013.5.192/mkl/include',
     ]
+
+elif args.compiler == 'gcc':
+    libs = [
+        'cblas',
+        'gomp',
+    ]
+
+    flags = [
+        '-ffast-math',
+    ]
+
+    library_dirs = [
+        '/usr/lib/atlas-base',
+    ]
+
+    include_dirs = [
+        '/usr/include/atlas',
+    ]
+
 else:
-    blas_libs = ['cblas']
-    blas_flags = []
-    blas_library_dirs = [
-        '/usr/lib/atlas-base'
-    ]
-    blas_include_dirs = [
-        '/usr/include/atlas'
-    ]
+    raise Exception ('intelem and gcc are the only supported compilers.')
 
 pydro_detection = Extension(
     'pydro._detection',
@@ -36,14 +60,13 @@ pydro_detection = Extension(
         'src/pydro/_detection.c'
     ],
 
-    library_dirs=blas_library_dirs,
+    library_dirs=library_dirs,
 
     libraries=[
         'dl', 
         'pthread', 
         'm', 
-        'gomp'
-    ]+blas_libs,
+    ]+libs,
 
     extra_compile_args=[
         '-fopenmp', 
@@ -54,19 +77,42 @@ pydro_detection = Extension(
         '-Werror', 
         '-Wno-long-long',
         '-funroll-loops',
-    ]+blas_flags,
+    ]+flags,
 
     include_dirs=[
         numpy.get_include(), 
-    ]+blas_include_dirs,
+    ]+include_dirs,
 )
 
 pydro_features = Extension(
     'pydro._features',
-    sources=['src/pydro/_features.c'],
-    libraries=['dl', 'pthread', 'm', 'gomp'],
-    extra_compile_args=['-fopenmp', '-g', '-m64', '-O3', '-Wall', '-Werror', '-Wno-long-long'],
-    include_dirs=[numpy.get_include(), '.'],
+
+    sources=[
+        'src/pydro/_features.c'
+    ],
+
+    library_dirs=library_dirs,
+
+    libraries=[
+        'dl', 
+        'pthread', 
+        'm', 
+    ]+libs,
+
+    extra_compile_args=[
+        '-fopenmp', 
+        '-g', 
+        '-m64', 
+        '-O3', 
+        '-Wall', 
+        '-Werror', 
+        '-Wno-long-long'
+    ]+flags,
+
+    include_dirs=[
+        numpy.get_include(), 
+        '.'
+    ]+include_dirs,
 )
 
 setup ( 
