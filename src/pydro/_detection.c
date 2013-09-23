@@ -91,7 +91,7 @@ PyObject * deformation_cost (PyArrayObject * pydata, float ax, float bx, float a
   return Py_BuildValue("OOO", pydeformed, pyIx, pyIy);
 }
 
-PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
+PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias, int width, int height) {
     npy_intp * features_dims = PyArray_DIMS(pyfeatures);
     npy_intp * filter_dims = PyArray_DIMS(pyfilter);
     int a, b, l;
@@ -99,6 +99,8 @@ PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilt
     npy_intp * features_stride = PyArray_STRIDES(pyfeatures);
     npy_intp * filtered_stride = NULL;
     npy_intp filtered_dims[2] = {0, 0};
+    int tight_width;
+    int tight_height;
 
     if (PyArray_NDIM(pyfeatures) != 3) {
         PyErr_SetString(PyExc_TypeError, "Features must be 3 dimensional.");
@@ -130,8 +132,11 @@ PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilt
         return NULL;
     }
 
-    filtered_dims[0] = features_dims[0]-filter_dims[0]+1;
-    filtered_dims[1] = features_dims[1]-filter_dims[1]+1;
+    tight_height = features_dims[0]-filter_dims[0]+1;
+    tight_width = features_dims[1]-filter_dims[1]+1;
+
+    filtered_dims[0] = height ? height : tight_height;
+    filtered_dims[1] = width ? width : tight_width;
 
     if (filtered_dims[0] < 1 || filtered_dims[1] < 1) {
         PyErr_SetString(PyExc_TypeError, "Input features are too small for filter.");
@@ -143,8 +148,8 @@ PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilt
     filtered_stride = PyArray_STRIDES(pyfiltered);
 
     /* zero out array */
-    for (a = 0; a < filtered_dims[0]; ++a) {
-        for (b = 0; b < filtered_dims[1]; ++b) {
+    for (a = 0; a < tight_height; ++a) {
+        for (b = 0; b < tight_width; ++b) {
             *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -bias;
         }
     }
@@ -157,15 +162,27 @@ PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilt
         int j;
         for (j = 0; j < filter_dims[1]; ++j) {
             int k;
-            for (k = 0; k < filtered_dims[0]; ++k) {
+            for (k = 0; k < tight_height; ++k) {
                 float * out = (float*)PyArray_GETPTR2(pyfiltered, k, 0);
                 /* for each layer */
                 for (l = 0; l < 32; ++l) {
                     float weight = *(float*)PyArray_GETPTR3(pyfilter, i, j, l);
                     float * in = (float*)PyArray_GETPTR3(pyfeatures, i+k, j, l);
-                    cblas_saxpy(filtered_dims[1], weight, in, stride_src, out, stride_dst);
+                    cblas_saxpy(tight_width, weight, in, stride_src, out, stride_dst);
                 }
             }
+        }
+    }
+
+    for (a = tight_height; a < filtered_dims[0]; ++a) {
+        for (b = 0; b < filtered_dims[1]; ++b) {
+            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -INFINITY;
+        }
+    }
+
+    for (a = 0; a < filtered_dims[0]; ++a) {
+        for (b = tight_width; b < filtered_dims[1]; ++b) {
+            *(float*)PyArray_GETPTR2(pyfiltered, a, b) = -INFINITY;
         }
     }
 
@@ -187,35 +204,71 @@ static PyObject * FilterImage(PyObject * self, PyObject * args)
     PyArrayObject * pyfeatures;
     PyArrayObject * pyfilter;
     float bias = 0.0f;
-    if (!PyArg_ParseTuple(args, "O!O!|f", &PyArray_Type, &pyfeatures, &PyArray_Type, &pyfilter, &bias)) 
+    int width = 0;
+    int height = 0;
+    if (!PyArg_ParseTuple(args, "O!O!|fii", &PyArray_Type, &pyfeatures, &PyArray_Type, &pyfilter, &bias, &width, &height)) 
         return NULL;
-    return PyArray_Return(filter_image(pyfeatures, pyfilter, bias));
+    return PyArray_Return(filter_image(pyfeatures, pyfilter, bias, width, height));
 }
 
 static PyObject * FilterImages(PyObject * self, PyObject * args)
 {
     PyObject * pyfeatures_list;
+    PyObject * pydims_list = NULL;
     PyArrayObject * pyfilter;
     float bias = 0.0f;
     int numfilters;
+    int numdims = 0;
     int i;
     PyObject ** objs = NULL;
     PyArrayObject ** results = NULL;
     PyObject * pyresults_list;
-    if (!PyArg_ParseTuple(args, "O!O!|f", &PyList_Type, &pyfeatures_list, &PyArray_Type, &pyfilter, &bias)) 
+    if (!PyArg_ParseTuple(args, "O!O!|fO!", &PyList_Type, &pyfeatures_list, &PyArray_Type, &pyfilter, &bias, &PyList_Type, &pydims_list)) 
         return NULL;
 
     numfilters = PyList_Size(pyfeatures_list);
+    
+    if (pydims_list) {
+        numdims = PyList_Size(pydims_list);
+    }
+
+    if (numdims && numdims != numfilters) {
+        PyErr_SetString(PyExc_TypeError, "If pad dims are specified, then it must be the same length as the features list.");
+        return NULL;
+    }
 
     objs = (PyObject**)calloc(numfilters, sizeof(PyObject*));
+    int* widths = (int*)calloc(numfilters, sizeof(int));
+    int* heights = (int*)calloc(numfilters, sizeof(int));
     results = (PyArrayObject**)calloc(numfilters, sizeof(PyArrayObject*));
 
     for (i = 0; i < numfilters; ++i) {
         objs[i] = PyList_GetItem(pyfeatures_list, i);
         if (!PyArray_Check(objs[i])) {
             free(objs);
+            free(widths);
+            free(heights);
+            free(results);
             PyErr_SetString(PyExc_TypeError, "Must contain a list of numpy arrays.");
             return NULL;
+        }
+
+        if (pydims_list) {
+            PyObject * dims = PyList_GetItem(pydims_list, i);
+            if (!PyTuple_Check(dims) || 2 != PyTuple_Size(dims)) {
+                free(objs);
+                free(widths);
+                free(heights);
+                free(results);
+                PyErr_SetString(PyExc_TypeError, "Must contain a list of tuples.");
+                return NULL;
+            }
+
+            heights[i] = PyInt_AsLong(PyTuple_GetItem(dims, 0));
+            widths[i] = PyInt_AsLong(PyTuple_GetItem(dims, 1));
+        } else {
+            widths[i] = 0;
+            heights[i] = 0;
         }
     }
 
@@ -223,10 +276,12 @@ static PyObject * FilterImages(PyObject * self, PyObject * args)
     #pragma omp parallel for schedule(dynamic) 
     for (i = 0; i < numfilters; ++i) { 
         PyArrayObject * pyfeatures = (PyArrayObject*)objs[i];
-        results[i] = filter_image(pyfeatures, pyfilter, bias);
+        results[i] = filter_image(pyfeatures, pyfilter, bias, widths[i], heights[i]);
     }
 
     free(objs);
+    free(widths);
+    free(heights);
 
     pyresults_list = PyList_New(numfilters);
 
