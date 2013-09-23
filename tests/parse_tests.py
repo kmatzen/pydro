@@ -10,7 +10,7 @@ def parse_small_test():
     model.start.rules[0].anchor = model.start.rules[0].anchor[1:2]
 
     image = scipy.misc.imread('tests/000034.jpg')
-    pyramid = BuildPyramid(image, model.sbin, model.interval, model.features.extra_octave, model.maxsize[1], model.maxsize[0])
+    pyramid = BuildPyramid(image, model.sbin, model.interval, model.features.extra_octave, model.maxsize[1]+1, model.maxsize[0]+1)
 
     filtered_model = model.Filter(pyramid)
 
@@ -20,7 +20,7 @@ def parse_test():
     model = LoadModel('tests/example.dpm')
 
     image = scipy.misc.imread('tests/000034.jpg')
-    pyramid = BuildPyramid(image, model.sbin, model.interval, model.features.extra_octave, model.maxsize[1], model.maxsize[0])
+    pyramid = BuildPyramid(image, model.sbin, model.interval, model.features.extra_octave, model.maxsize[1]+1, model.maxsize[0]+1)
 
     filtered_model = model.Filter(pyramid)
 

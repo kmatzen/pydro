@@ -8,6 +8,7 @@ import sys
 Level = namedtuple('Level', 'features,scale')
 
 def PadLayer (layer, padx, pady):
+    return layer
     padded = numpy.pad(layer, ((pady+1,pady+1), (padx+1,padx+1), (0,0)), 'constant')
     padded[:pady+1,:,-1] = 1
     padded[-pady-1:,:,-1] = 1
@@ -33,17 +34,17 @@ def BuildPyramid (image, sbin, interval, extra_interval, padx, pady):
 
             if extra_interval:
                 yield Level(
-                    features=PadLayer(ComputeFeatures(scaled, sbin/4), padx, pady), 
+                    features=ComputeFeatures(scaled, sbin/4, padx, pady), 
                     scale=4*scale,
                 )
 
             yield Level(
-                features=PadLayer(ComputeFeatures(scaled, sbin/2), padx, pady),
+                features=ComputeFeatures(scaled, sbin/2, padx, pady),
                 scale=2*scale,
             )
 
             yield Level(
-                features=PadLayer(ComputeFeatures(scaled, sbin), padx, pady),
+                features=ComputeFeatures(scaled, sbin, padx, pady),
                 scale=scale,
             )
 
@@ -54,7 +55,7 @@ def BuildPyramid (image, sbin, interval, extra_interval, padx, pady):
                 scaled = ResizeImage(image, y,x)
                 
                 yield Level(
-                    features=PadLayer(ComputeFeatures(scaled, sbin), padx, pady),
+                    features=ComputeFeatures(scaled, sbin, padx, pady),
                     scale=scale,
                 )
      

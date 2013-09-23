@@ -50,7 +50,7 @@ static inline int maxi(int x, int y) { return (x <= y ? y : x); }
 // main function:
 // takes a float color image and a bin size 
 // returns HOG features
-PyObject *process(PyArrayObject *pyimage, const int sbin) {
+PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const int pad_y) {
   const npy_intp *dims = PyArray_DIMS(pyimage);
   int cells[2];
   int visible[2];
@@ -58,7 +58,7 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
   double *hist = NULL;
   double *norm = NULL;
   PyArrayObject *pyfeat = NULL;
-  int x, y;  
+  int x, y, l;  
   int o;
 
   if (PyArray_NDIM(pyimage) != 3 ||
@@ -75,8 +75,8 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
   norm = (double *)calloc(cells[0]*cells[1], sizeof(double));
 
   // memory for HOG features
-  out[0] = maxi(cells[0]-2, 0);
-  out[1] = maxi(cells[1]-2, 0);
+  out[0] = maxi(cells[0]-2, 0)+2*pad_y;
+  out[1] = maxi(cells[1]-2, 0)+2*pad_x;
   out[2] = 27+4+1;
   pyfeat = (PyArrayObject*)PyArray_SimpleNew((npy_intp)3, out, NPY_FLOAT);
   
@@ -180,8 +180,8 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
   }
 
   // compute features
-  for (x = 0; x < out[1]; x++) {
-    for (y = 0; y < out[0]; y++) {
+  for (x = 0; x < out[1]-pad_x*2; x++) {
+    for (y = 0; y < out[0]-pad_y*2; y++) {
       double *src, *p, n1, n2, n3, n4;
       double t1 = 0.0;
       double t2 = 0.0;
@@ -204,7 +204,7 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
         double h2 = minf(*src * n2, 0.2);
         double h3 = minf(*src * n3, 0.2);
         double h4 = minf(*src * n4, 0.2);
-        *(float*)PyArray_GETPTR3(pyfeat, y, x, o) = 0.5 * (h1 + h2 + h3 + h4);
+        *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, o) = 0.5 * (h1 + h2 + h3 + h4);
         t1 += h1;
         t2 += h2;
         t3 += h3;
@@ -220,20 +220,46 @@ PyObject *process(PyArrayObject *pyimage, const int sbin) {
         double h2 = minf(sum * n2, 0.2);
         double h3 = minf(sum * n3, 0.2);
         double h4 = minf(sum * n4, 0.2);
-        *(float*)PyArray_GETPTR3(pyfeat, y, x, o+18) = 0.5 * (h1 + h2 + h3 + h4);
+        *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, o+18) = 0.5 * (h1 + h2 + h3 + h4);
         src += cells[0]*cells[1];
       }
 
       // texture features
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 27) = 0.2357 * t1;
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 28) = 0.2357 * t2;
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 29) = 0.2357 * t3;
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 30) = 0.2357 * t4;
+      *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, 27) = 0.2357 * t1;
+      *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, 28) = 0.2357 * t2;
+      *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, 29) = 0.2357 * t3;
+      *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, 30) = 0.2357 * t4;
 
       // truncation feature
-      *(float*)PyArray_GETPTR3(pyfeat, y, x, 31) = 0.0;
+      *(float*)PyArray_GETPTR3(pyfeat, y+pad_y, x+pad_x, 31) = 0.0;
     }
   }
+
+  for (y = 0; y < out[0]; ++y) {
+      for (x = 0; x < pad_x; ++x) {
+        int x_op = out[1] - x - 1;
+        for (l = 0; l < 31; ++l) {
+            *(float*)PyArray_GETPTR3(pyfeat, y, x, l) = 0;
+
+            *(float*)PyArray_GETPTR3(pyfeat, y, x_op, l) = 0;
+        }
+        *(float*)PyArray_GETPTR3(pyfeat, y, x, 31) = 1;
+        *(float*)PyArray_GETPTR3(pyfeat, y, x_op, 31) = 1;
+      }
+  }
+  for (x = 0; x < out[1]; ++x) {
+      for (y = 0; y < pad_y; ++y) {
+        int y_op = out[0] - y - 1;
+        for (l = 0; l < 31; ++l) {
+            *(float*)PyArray_GETPTR3(pyfeat, y, x, l) = 0;
+            *(float*)PyArray_GETPTR3(pyfeat, y_op, x, l) = 0;
+        }
+        *(float*)PyArray_GETPTR3(pyfeat, y, x, 31) = 1;
+
+        *(float*)PyArray_GETPTR3(pyfeat, y_op, x, 31) = 1;
+      }
+  }
+
 
   free(hist);
   free(norm);
@@ -359,10 +385,10 @@ PyObject *resize_image(PyArrayObject * pyimage, int y, int x) {
 static PyObject * ComputeFeatures(PyObject * self, PyObject * args)
 {
     PyArrayObject * pyimage;
-    int sbin;
-    if (!PyArg_ParseTuple(args, "O!i", &PyArray_Type, &pyimage, &sbin)) 
+    int sbin, pad_x, pad_y;
+    if (!PyArg_ParseTuple(args, "O!iii", &PyArray_Type, &pyimage, &sbin, &pad_x, &pad_y)) 
         return NULL;
-    return process(pyimage, sbin);
+    return process(pyimage, sbin, pad_x, pad_y);
 }
 
 static PyObject * ResizeImage (PyObject * self, PyObject * args)

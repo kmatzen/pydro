@@ -15,7 +15,7 @@ def resize_test():
 
 def features_test():
     lenna_image = scipy.misc.imread('tests/lenna.png').astype(numpy.float32)
-    lenna_features = ComputeFeatures(lenna_image, 8)
+    lenna_features = ComputeFeatures(lenna_image, 8, 0, 0)
 
     correct_features = scipy.io.loadmat('tests/lenna_features.mat')
 
@@ -27,7 +27,7 @@ def build_pyramid_test():
     sbin = 8
     interval = 10
 
-    pyramid = BuildPyramid(image, sbin, interval, True, 15, 6)
+    pyramid = BuildPyramid(image, sbin, interval, True, 16, 7)
 
     for level in pyramid:
 
@@ -58,7 +58,7 @@ def compare_pyramid_test():
     image = scipy.misc.imread('tests/000034.jpg')
 
     model = LoadModel('tests/example.dpm')
-    pyramid = BuildPyramid(image, model.features.sbin, model.interval, False, 15, 6)
+    pyramid = BuildPyramid(image, model.features.sbin, model.interval, False, 16, 7)
 
     correct = scipy.io.loadmat('tests/pyramid.mat')
 
@@ -76,6 +76,7 @@ def compare_pyramid_test():
         if level.scale > 1:
             assert numpy.fabs(numpy.median(numpy.fabs(diff))-1) < 1e-2
         else:
+            print(numpy.median(numpy.fabs(diff)))
             assert numpy.fabs(numpy.median(numpy.fabs(diff))-1) < 1e-1
 
 def resize_test():
