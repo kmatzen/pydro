@@ -90,7 +90,7 @@ PyObject * deformation_cost (PyArrayObject * pydata, float ax, float bx, float a
   return Py_BuildValue("OOO", pydeformed, pyIx, pyIy);
 }
 
-PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
+PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias) {
     npy_intp * features_dims = PyArray_DIMS(pyfeatures);
     npy_intp * filter_dims = PyArray_DIMS(pyfilter);
     int a, b, l;
@@ -168,7 +168,7 @@ PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, f
         }
     }
 
-    return PyArray_Return(pyfiltered);
+    return pyfiltered;
 }
 
 static PyObject * DeformationCost(PyObject * self, PyObject * args)
@@ -188,7 +188,53 @@ static PyObject * FilterImage(PyObject * self, PyObject * args)
     float bias = 0.0f;
     if (!PyArg_ParseTuple(args, "O!O!|f", &PyArray_Type, &pyfeatures, &PyArray_Type, &pyfilter, &bias)) 
         return NULL;
-    return filter_image(pyfeatures, pyfilter, bias);
+    return PyArray_Return(filter_image(pyfeatures, pyfilter, bias));
+}
+
+static PyObject * FilterImages(PyObject * self, PyObject * args)
+{
+    PyObject * pyfeatures_list;
+    PyArrayObject * pyfilter;
+    float bias = 0.0f;
+    int numfilters;
+    int i;
+    PyObject ** objs = NULL;
+    PyArrayObject ** results = NULL;
+    PyObject * pyresults_list;
+    if (!PyArg_ParseTuple(args, "O!O!|f", &PyList_Type, &pyfeatures_list, &PyArray_Type, &pyfilter, &bias)) 
+        return NULL;
+
+    numfilters = PyList_Size(pyfeatures_list);
+
+    objs = (PyObject**)calloc(numfilters, sizeof(PyObject*));
+    results = (PyArrayObject**)calloc(numfilters, sizeof(PyArrayObject*));
+
+    for (i = 0; i < numfilters; ++i) {
+        objs[i] = PyList_GetItem(pyfeatures_list, i);
+        if (!PyArray_Check(objs[i])) {
+            free(objs);
+            PyErr_SetString(PyExc_TypeError, "Must contain a list of numpy arrays.");
+            return NULL;
+        }
+    }
+
+    #pragma omp parallel for schedule(dynamic) 
+    for (i = 0; i < numfilters; ++i) { 
+        PyArrayObject * pyfeatures = (PyArrayObject*)objs[i];
+        results[i] = filter_image(pyfeatures, pyfilter, bias);
+    }
+
+    free(objs);
+
+    pyresults_list = PyList_New(numfilters);
+
+    for (i = 0; i < numfilters; ++i) {
+        PyList_SetItem(pyresults_list, i, PyArray_Return(results[i]));
+    }
+
+    free(results);
+
+    return Py_BuildValue("O", pyresults_list);    
 }
 
 #if PY_MAJOR_VERSION >= 3
@@ -208,6 +254,7 @@ static struct PyModuleDef moduledef = {
 #if PY_MAJOR_VERSION < 3
 static PyMethodDef _detection_methods[] = {
     {"FilterImage", FilterImage, METH_VARARGS, "Compute a 2D cross correlation between a filter and image features.  Optionally add bias term."},
+    {"FilterImages", FilterImages, METH_VARARGS, "Compute a 2D cross correlation between a filter and several image features in parallel.  Optionally add bias term."},
     {"DeformationCost", DeformationCost, METH_VARARGS, "Compute a fast bounded distance transform for the deformation cost."},
     {NULL}
 };
