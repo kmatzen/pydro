@@ -9,8 +9,7 @@ from collections import namedtuple
 __all__ = ['Offset', 'Block', 'Def', 'DeformationRule', 'Features', 'Filter', 'Loc', 'Model', 'Rule', 'Stats', 'StructuralRule', 'Symbol', 'FilteredSymbol', 'FilteredStructuralRule', 'FilteredDeformationRule', 'TreeNode', 'Leaf']
 
 Score = namedtuple('Score', 'score,scale')
-Node = namedtuple('Node', 'x,y,l,s,symbol,ds')
-TreeNode = namedtuple('TreeNode', 'x,y,l,s,symbol,ds,children')
+TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children')
 Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale')
 
 class Model(object):
@@ -78,138 +77,11 @@ class FilteredModel (Model):
         assert len(X) == len(L)
         assert len(X) == len(S)
         for x, y, l, s in itertools.izip(X, Y, L, S):
-            q = Queue.Queue()
-            children = {}
+            detections += [
+                self.filtered_start.Parse(x=x, y=y, l=l, s=s, ds=0, model=self)
+            ]
 
-            root_node = Node(
-                x=x,
-                y=y,
-                l=l,
-                s=s,
-                symbol=self.filtered_start,
-                ds=0,
-            )
-
-            q.put(root_node)
-
-            while not q.empty():
-                node = q.get()
-                children[node] = []
-
-                if node.symbol.type == 'T':
-                    scale = self.sbin/node.symbol.score[node.l].scale
-
-                    x1 = (node.x - self.maxsize[1]*(1<<node.ds))*scale
-                    y1 = (node.y - self.maxsize[0]*(1<<node.ds))*scale
-                    x2 = x1 + node.symbol.filter.blocklabel.w.shape[1]*scale - 1
-                    y2 = y1 + node.symbol.filter.blocklabel.w.shape[0]*scale - 1
-
-                    leaf = Leaf(
-                        x1=x1,
-                        x2=x2,
-                        y1=y1,
-                        y2=y2,
-                        scale=scale,
-                    )
-
-                    children[node] += [leaf]
-                else:
-                    selected_rule = None
-                    for rule in node.symbol.filtered_rules:
-                        nvp_y = node.y - self.maxsize[0]*((1<<node.ds)-1)
-                        nvp_x = node.x - self.maxsize[1]*((1<<node.ds)-1) 
-
-                        score = rule.score[node.l].score[nvp_y,nvp_x]
-
-                        if score == node.s:
-                            selected_rule = rule
-                            break
-                    if selected_rule is None:
-                        raise Exception('Rule argmax not found')
-                    rule = selected_rule
-
-                    if isinstance(rule, FilteredStructuralRule):
-                        assert len(rule.anchor) == len(rule.filtered_rhs)
-                        for anchor, symbol in itertools.izip(rule.anchor, rule.filtered_rhs):
-                            ax, ay, ads = anchor
-
-                            rhs_x = node.x * (1<<ads) + ax
-                            rhs_y = node.y * (1<<ads) + ay
-                            rhs_l = node.l - self.interval*ads
-
-                            rhs_ds = node.ds + ads
-
-                            nvp_y = rhs_y - self.maxsize[0]*((1<<rhs_ds)-1)
-                            nvp_x = rhs_x - self.maxsize[1]*((1<<rhs_ds)-1) 
-    
-                            rhs_s = symbol.score[rhs_l].score[nvp_y,nvp_x]
-
-                            new_node = Node(
-                                x=rhs_x,    
-                                y=rhs_y,
-                                l=rhs_l,
-                                s=rhs_s,
-                                ds=rhs_ds,
-                                symbol=symbol,
-                            )
-
-                            children[node] += [new_node]
-
-                            q.put(new_node)
-                    elif isinstance(rule, FilteredDeformationRule):
-                        Ix = rule.Ix[node.l]
-                        Iy = rule.Iy[node.l]
-
-                        nvp_y = node.y - self.maxsize[0]*((1<<node.ds)-1)
-                        nvp_x = node.x - self.maxsize[1]*((1<<node.ds)-1)
-
-                        rhs_nvp_x = Ix[nvp_y, nvp_x]
-                        rhs_nvp_y = Iy[nvp_y, nvp_x]
-
-                        rhs_x = rhs_nvp_x + self.maxsize[1]*((1<<node.ds)-1)
-                        rhs_y = rhs_nvp_y + self.maxsize[0]*((1<<node.ds)-1)
-
-                        symbol, = rule.filtered_rhs
-
-                        nvp_x = rhs_x - self.maxsize[1]*((1<<node.ds)-1)
-                        nvp_y = rhs_y - self.maxsize[0]*((1<<node.ds)-1)
-                        rhs_s = symbol.score[node.l].score[nvp_y,nvp_x]
-
-                        new_node = Node(
-                            x=rhs_x,
-                            y=rhs_y,
-                            l=node.l,
-                            ds=node.ds,
-                            s=rhs_s,
-                            symbol=symbol,
-                        )
-
-                        children[node] += [new_node]
-
-                        q.put(new_node)
-                    else:
-                        raise Exception('Unknown rule type: %s'%rule.__class__.__name__) 
-
-            tree = self._build_tree (root_node, children)
-
-            detections += [tree]
         return detections
-
-    def _build_tree (self, node, children):
-        if isinstance(node, Leaf):
-            return node
-
-        tree_node = TreeNode(
-            x=node.x,
-            y=node.y,
-            l=node.l,
-            ds=node.ds,
-            s=node.s,
-            symbol=node.symbol,
-            children=[self._build_tree(child, children) for child in children[node]],
-        )
-
-        return tree_node
 
 class Filter(object):
     def __init__ (self, blocklabel, size, flip, symbol):
@@ -288,6 +160,37 @@ class FilteredDeformationRule(DeformationRule):
         self.Ix = [d[1] for d in deformations]
         self.Iy = [d[2] for d in deformations]
 
+    def Parse(self, x, y, l, s, ds, model):
+        Ix = self.Ix[l]
+        Iy = self.Iy[l]
+
+        nvp_y = y - model.maxsize[0]*((1<<ds)-1)
+        nvp_x = x - model.maxsize[1]*((1<<ds)-1)
+
+        rhs_nvp_x = Ix[nvp_y, nvp_x]
+        rhs_nvp_y = Iy[nvp_y, nvp_x]
+
+        rhs_x = rhs_nvp_x + model.maxsize[1]*((1<<ds)-1)
+        rhs_y = rhs_nvp_y + model.maxsize[0]*((1<<ds)-1)
+
+        symbol, = self.filtered_rhs
+
+        nvp_x = rhs_x - model.maxsize[1]*((1<<ds)-1)
+        nvp_y = rhs_y - model.maxsize[0]*((1<<ds)-1)
+        rhs_s = symbol.score[l].score[nvp_y,nvp_x]
+
+        children=[symbol.Parse(
+            x=rhs_x, 
+            y=rhs_y, 
+            l=l, 
+            ds=ds, 
+            s=rhs_s, 
+            model=model,
+        )]
+
+        return children
+
+
 class StructuralRule(Rule):
     def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, anchor, offset, loc, blocks):
         super(StructuralRule, self).__init__ (type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks)
@@ -361,6 +264,37 @@ class FilteredStructuralRule(StructuralRule):
         assert len(pyramid) == len(self.score)
         self.score = [Score(scale=l.scale, score=s) for l, s in itertools.izip(pyramid, self.score)]
 
+    def Parse(self, x, y, l, s, ds, model):
+        assert len(self.anchor) == len(self.filtered_rhs)
+        children = []
+        for anchor, symbol in itertools.izip(self.anchor, self.filtered_rhs):
+            ax, ay, ads = anchor
+
+            rhs_x = x * (1<<ads) + ax
+            rhs_y = y * (1<<ads) + ay
+            rhs_l = l - model.interval*ads
+
+            rhs_ds = ds + ads
+
+            nvp_y = rhs_y - model.maxsize[0]*((1<<rhs_ds)-1)
+            nvp_x = rhs_x - model.maxsize[1]*((1<<rhs_ds)-1) 
+
+            rhs_s = symbol.score[rhs_l].score[nvp_y,nvp_x]
+
+            children += [
+                symbol.Parse(
+                    x=rhs_x, 
+                    y=rhs_y, 
+                    l=rhs_l, 
+                    s=rhs_s, 
+                    ds=rhs_ds, 
+                    model=model
+                )
+            ]
+
+        return children
+
+
 class Symbol(object):
     def __init__ (self, type, filter, rules=[]):
         self.type = type
@@ -423,6 +357,51 @@ class FilteredSymbol(Symbol):
                 for level, f in itertools.izip(self.score, filtered_rule.score)]
 
         assert self.score is not None or self.filtered is not None
+
+    def Parse(self, x, y, l, s, ds, model):
+        if self.type == 'T':
+            scale = model.sbin/self.score[l].scale
+
+            x1 = (x - model.maxsize[1]*(1<<ds))*scale
+            y1 = (y - model.maxsize[0]*(1<<ds))*scale
+            x2 = x1 + self.filter.blocklabel.w.shape[1]*scale - 1
+            y2 = y1 + self.filter.blocklabel.w.shape[0]*scale - 1
+
+            leaf = Leaf(
+                x1=x1,
+                x2=x2,
+                y1=y1,
+                y2=y2,
+                scale=scale,
+            )
+
+            return leaf
+        else:
+            selected_rule = None
+            for rule in self.filtered_rules:
+                nvp_y = y - model.maxsize[0]*((1<<ds)-1)
+                nvp_x = x - model.maxsize[1]*((1<<ds)-1) 
+
+                score = rule.score[l].score[nvp_y,nvp_x]
+
+                if score == s:
+                    selected_rule = rule
+                    break
+            if selected_rule is None:
+                raise Exception('Rule argmax not found')
+            rule = selected_rule
+
+            node = TreeNode(
+                x=x,
+                y=y,
+                l=l,
+                ds=ds,
+                s=s,
+                symbol=self,
+                children=rule.Parse(x=x, y=y, l=l, s=s, ds=ds, model=model),
+            )
+
+            return node
 
     def __repr__ (self):
         return '%s\t%s'%(self.type, '\n\t'.join(str(type(r)) for r in self.filtered_rules))
