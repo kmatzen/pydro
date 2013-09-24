@@ -1,12 +1,29 @@
 from pydro.detection import *
 
-import Queue
 import itertools
 import copy
 import numpy
 from collections import namedtuple
 
-__all__ = ['Offset', 'Block', 'Def', 'DeformationRule', 'Features', 'Filter', 'Loc', 'Model', 'Rule', 'Stats', 'StructuralRule', 'Symbol', 'FilteredSymbol', 'FilteredStructuralRule', 'FilteredDeformationRule', 'TreeNode', 'Leaf']
+__all__ = [
+    'Offset', 
+    'Block', 
+    'Def', 
+    'DeformationRule', 
+    'Features', 
+    'Filter', 
+    'Loc', 
+    'Model', 
+    'Rule', 
+    'Stats', 
+    'StructuralRule', 
+    'Symbol', 
+    'FilteredSymbol', 
+    'FilteredStructuralRule', 
+    'FilteredDeformationRule', 
+    'TreeNode', 
+    'Leaf'
+]
 
 Score = namedtuple('Score', 'score,scale')
 TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children')
@@ -14,7 +31,8 @@ Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale')
 
 class Model(object):
     def __init__ (self, clss, year, note, start, maxsize, minsize,
-                    interval, sbin, thresh, type, features, stats, rules=None, symbols=None, filters=None, blocks=None):
+                  interval, sbin, thresh, type, features, stats, 
+                  rules=None, symbols=None, filters=None, blocks=None):
         if rules is not None:
             self.rules = rules
         if symbols is not None:
@@ -91,7 +109,8 @@ class Filter(object):
         self.symbol = symbol
 
 class Rule(object):
-    def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks):
+    def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, 
+                  offset, loc, blocks):
         self.type = type
         self.lhs = lhs
         self.rhs = rhs
@@ -121,8 +140,12 @@ class Rule(object):
       
 
 class DeformationRule(Rule):
-    def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, offset, df, loc, blocks):
-        super(DeformationRule, self).__init__ (type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks)
+    def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, 
+                  offset, df, loc, blocks):
+        super(DeformationRule, self).__init__ (
+            type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks
+        )
+
         self.df = df
 
     def Filter (self, pyramid, model, filtered_size):
@@ -130,9 +153,13 @@ class DeformationRule(Rule):
  
 class FilteredDeformationRule(DeformationRule):
     def __init__ (self, deformation_rule, pyramid, model, filtered_size):
-        super(FilteredDeformationRule, self).__init__ (**deformation_rule.__dict__)
+        super(FilteredDeformationRule, self).__init__ (
+            **deformation_rule.__dict__
+        )
        
-        self.filtered_rhs = [s.Filter(pyramid, model, filtered_size) for s in self.rhs]
+        self.filtered_rhs = [
+            s.Filter(pyramid, model, filtered_size) for s in self.rhs
+        ]
 
         def_w = self.df.blocklabel.w
         
@@ -153,10 +180,16 @@ class FilteredDeformationRule(DeformationRule):
         ax, bx, ay, by = def_w.flatten().tolist()
 
         assert len(loc_scores.flatten()) == len(score)
-        deformations = [DeformationCost(bias+s+ss.score, ax, bx, ay, by, 4) for s,ss in itertools.izip(loc_scores.flatten(), score)]
+        deformations = [
+            DeformationCost(bias+s+ss.score, ax, bx, ay, by, 4) 
+            for s,ss in itertools.izip(loc_scores.flatten(), score)
+        ]
 
         assert len(score) == len(deformations)
-        self.score = [Score(scale=s.scale, score=d[0]) for s,d in itertools.izip(score, deformations)]
+        self.score = [
+            Score(scale=s.scale, score=d[0]) 
+            for s,d in itertools.izip(score, deformations)
+        ]
         self.Ix = [d[1] for d in deformations]
         self.Iy = [d[2] for d in deformations]
 
@@ -192,8 +225,12 @@ class FilteredDeformationRule(DeformationRule):
 
 
 class StructuralRule(Rule):
-    def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, anchor, offset, loc, blocks):
-        super(StructuralRule, self).__init__ (type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks)
+    def __init__ (self, type, lhs, rhs, detwindow, shiftwindow, i, anchor, 
+                  offset, loc, blocks):
+        super(StructuralRule, self).__init__ (
+            type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks
+        )
+
         self.anchor = anchor
 
     def Filter (self, pyramid, model, filtered_size):
@@ -203,7 +240,9 @@ class FilteredStructuralRule(StructuralRule):
     def __init__ (self, structural_rule, pyramid, model, filtered_size):
         super(FilteredStructuralRule, self).__init__ (**structural_rule.__dict__)
         
-        self.filtered_rhs = [s.Filter(pyramid, model, filtered_size) for s in self.rhs]
+        self.filtered_rhs = [
+            s.Filter(pyramid, model, filtered_size) for s in self.rhs
+        ]
 
         bias = self.offset.blocklabel.w*model.features.bias
         loc_w = self.loc.blocklabel.w
@@ -216,7 +255,11 @@ class FilteredStructuralRule(StructuralRule):
         loc_scores = loc_w.dot(loc_f).flatten()
 
         assert len(filtered_size) == len(loc_scores.flatten())
-        self.score = [float(bias + loc_score)*numpy.ones(size, dtype=numpy.float32) for size,loc_score in itertools.izip(filtered_size,loc_scores.flatten())]
+        self.score = [
+            float(bias + loc_score)*numpy.ones(size, dtype=numpy.float32) 
+            for size,loc_score 
+            in itertools.izip(filtered_size,loc_scores.flatten())
+        ]
       
         assert len(self.anchor) == len(self.filtered_rhs)
         for anchor, filtered_symbol in itertools.izip(self.anchor, self.filtered_rhs):
@@ -236,8 +279,15 @@ class FilteredStructuralRule(StructuralRule):
                 level = i - model.interval*ds
                 
                 if level >= 0:
-                    endy = min(score[level].shape[0], starty+step*(self.score[i].shape[0]-1))
-                    endx = min(score[level].shape[1], startx+step*(self.score[i].shape[1]-1))
+                    endy = min(
+                        score[level].shape[0], 
+                        starty+step*(self.score[i].shape[0]-1)
+                    )
+
+                    endx = min(
+                        score[level].shape[1], 
+                        startx+step*(self.score[i].shape[1]-1)
+                    )
 
                     iy = numpy.arange(starty, endy+1, step)
                     oy = (iy < 1).sum()
@@ -262,7 +312,10 @@ class FilteredStructuralRule(StructuralRule):
                     self.score[i][:] = -numpy.inf
 
         assert len(pyramid) == len(self.score)
-        self.score = [Score(scale=l.scale, score=s) for l, s in itertools.izip(pyramid, self.score)]
+        self.score = [
+            Score(scale=l.scale, score=s) 
+            for l, s in itertools.izip(pyramid, self.score)
+        ]
 
     def Parse(self, x, y, l, s, ds, model):
         assert len(self.anchor) == len(self.filtered_rhs)
@@ -343,10 +396,16 @@ class FilteredSymbol(Symbol):
             self.filtered = FilterPyramid (pyramid, filter, filtered_size)
             assert len(filtered_size) == len(self.filtered)
             assert len(pyramid) == len(self.filtered)
-            self.score = [Score(scale=level.scale, score=filtered) for level, filtered in itertools.izip(pyramid, self.filtered)]
+            self.score = [
+                Score(scale=level.scale, score=filtered) 
+                for level, filtered in itertools.izip(pyramid, self.filtered)
+            ]
+
             self.filtered_rules = []
         else:
-            self.filtered_rules = [r.Filter(pyramid, model, filtered_size) for r in self.rules]
+            self.filtered_rules = [
+                r.Filter(pyramid, model, filtered_size) for r in self.rules
+            ]
 
             self.score = self.filtered_rules[0].score
             for filtered_rule in self.filtered_rules[1:]:
@@ -404,7 +463,9 @@ class FilteredSymbol(Symbol):
             return node
 
     def __repr__ (self):
-        return '%s\t%s'%(self.type, '\n\t'.join(str(type(r)) for r in self.filtered_rules))
+        return '%s\t%s'%(self.type, '\n\t'.join(
+            str(type(r)) for r in self.filtered_rules
+        ))
 
 class Block(object):
     def __init__ (self, w, lb, learn, reg_mult, dim, type):
@@ -424,7 +485,8 @@ class Features(object):
         self.bias = bias
 
 class Stats(object):
-    def __init__ (self, slave_problem_time, data_mining_time, pos_latent_time, filter_usage):
+    def __init__ (self, slave_problem_time, data_mining_time, pos_latent_time, 
+                  filter_usage):
         self.slave_problem_time = slave_problem_time
         self.data_mining_time = data_mining_time
         self.pos_latent_time = pos_latent_time
