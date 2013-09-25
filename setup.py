@@ -10,26 +10,30 @@ parser.add_argument('--compiler', default='gcc')
 args, unknown = parser.parse_known_args()
 
 if args.compiler == 'intelem':
+    MKLROOT = '/usr/local/intel/composer_xe_2013.5.192/mkl'
+
     libs = [
-        'mkl_rt', 
-        'mkl_intel_ilp64', 
-        'mkl_sequential', 
+        'mkl_rt',
+        'mkl_intel_lp64',
         'mkl_core',
+        'mkl_intel_thread',
+        'pthread', 
+        'm',
         'iomp5',
     ]
 
     flags = [
-        '-DMKL_ILP64',
+        '-march=corei7',
+        '-openmp',
         '-fp-model fast',
     ]
 
     library_dirs = [
-        '/usr/local/intel/composer_xe_2013.5.192/mkl/lib/intel64',
-        '/usr/local/intel/lib/intel64',
+        MKLROOT+'/lib/intel64',
     ]
 
     include_dirs = [
-        '/usr/local/intel/composer_xe_2013.5.192/mkl/include',
+        MKLROOT+'/include',
     ]
 
 elif args.compiler == 'gcc':
@@ -39,6 +43,7 @@ elif args.compiler == 'gcc':
     ]
 
     flags = [
+        '-fopenmp',
         '-ffast-math',
     ]
 
@@ -62,16 +67,10 @@ pydro_detection = Extension(
 
     library_dirs=library_dirs,
 
-    libraries=[
-        'dl', 
-        'pthread', 
-        'm', 
-    ]+libs,
+    libraries=libs,
 
     extra_compile_args=[
-        '-fopenmp', 
         '-g', 
-        '-m64', 
         '-O3', 
         '-Wall', 
         '-Werror', 
@@ -93,16 +92,10 @@ pydro_features = Extension(
 
     library_dirs=library_dirs,
 
-    libraries=[
-        'dl', 
-        'pthread', 
-        'm', 
-    ]+libs,
+    libraries=libs,
 
     extra_compile_args=[
-        '-fopenmp', 
         '-g', 
-        '-m64', 
         '-O3', 
         '-Wall', 
         '-Werror', 
@@ -111,7 +104,6 @@ pydro_features = Extension(
 
     include_dirs=[
         numpy.get_include(), 
-        '.'
     ]+include_dirs,
 )
 
