@@ -1,7 +1,6 @@
-from pydro.detection import *
+from pydro.detection import FilterPyramid, DeformationCost
 
 import itertools
-import copy
 import numpy
 from collections import namedtuple
 
@@ -69,7 +68,7 @@ class FilteredModel (Model):
 
         self.filtered_start = self.start.Filter(pyramid, self, filtered_size)
 
-    def Parse(self, threshold, limit):
+    def Parse(self, threshold, limit=None):
         X = numpy.array([], dtype=numpy.uint32)
         Y = numpy.array([], dtype=numpy.uint32)
         L = numpy.array([], dtype=numpy.uint32)
@@ -83,6 +82,9 @@ class FilteredModel (Model):
                 Y = numpy.hstack((Y, Yi))
                 S = numpy.hstack((S, Si))
                 L = numpy.hstack((L, Li))
+
+        if limit is None:
+            limit = S.size
 
         order = list(enumerate(S))
         order.sort(key=lambda k: -k[1])
