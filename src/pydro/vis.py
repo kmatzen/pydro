@@ -7,7 +7,7 @@ from pydro.core import *
 
 
 def ShowDetections(trees, image):
-    canvas = image
+    canvas = image.copy()
 
     colors = numpy.array([
         [0, 0, 255],
