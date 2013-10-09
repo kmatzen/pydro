@@ -120,7 +120,7 @@ class Filter(object):
 class Rule(object):
 
     def __init__(self, type, lhs, rhs, detwindow, shiftwindow, i,
-                 offset, loc, blocks):
+                 offset, loc, blocks, metadata=None):
         self.type = type
         self.lhs = lhs
         self.rhs = rhs
@@ -130,6 +130,7 @@ class Rule(object):
         self.offset = offset
         self.loc = loc
         self.blocks = blocks
+        self.metadata = metadata
 
     def __repr__(self):
         return '%s: %s' % (self.type, len(self.rhs))
@@ -152,9 +153,9 @@ class Rule(object):
 class DeformationRule(Rule):
 
     def __init__(self, type, lhs, rhs, detwindow, shiftwindow, i,
-                 offset, df, loc, blocks):
+                 offset, df, loc, blocks, metadata=None):
         super(DeformationRule, self).__init__(
-            type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks
+            type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks, metadata
         )
 
         self.df = df
@@ -240,9 +241,9 @@ class FilteredDeformationRule(DeformationRule):
 class StructuralRule(Rule):
 
     def __init__(self, type, lhs, rhs, detwindow, shiftwindow, i, anchor,
-                 offset, loc, blocks):
+                 offset, loc, blocks, metadata=None):
         super(StructuralRule, self).__init__(
-            type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks
+            type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks, metadata
         )
 
         self.anchor = anchor
