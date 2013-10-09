@@ -25,7 +25,7 @@ __all__ = [
 ]
 
 Score = namedtuple('Score', 'score,scale')
-TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children')
+TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule')
 Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale')
 
 
@@ -482,6 +482,7 @@ class FilteredSymbol(Symbol):
                 ds=ds,
                 s=s,
                 symbol=self,
+                rule=selected_rule,
                 children=rule.Parse(x=x, y=y, l=l, s=s, ds=ds, model=model),
             )
 
