@@ -123,6 +123,8 @@ def _denormalize_model(model):
                 filter_idx = len(filters) + 1
                 filters[symbol.filter] = filter_idx
                 filters_rev[filter_idx] = symbol.filter
+                del symbol.filter._w
+
             filter_idx = filters[symbol.filter]
             symbol.filter = filter_idx
 
@@ -141,11 +143,10 @@ def _denormalize_model(model):
             rule.rhs = [symbols[a] for a in rule.rhs]
 
             for block in rule.blocks:
-                assert block not in blocks
-                block_idx = len(blocks) + 1
-                assert block_idx not in blocks_rev
-                blocks[block] = block_idx
-                blocks_rev[block_idx] = block
+                if block not in blocks:
+                    block_idx = len(blocks) + 1
+                    blocks[block] = block_idx
+                    blocks_rev[block_idx] = block
 
             rule.loc.blocklabel = blocks[rule.loc.blocklabel]
 
