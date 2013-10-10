@@ -25,6 +25,7 @@ __all__ = [
 ]
 
 Score = namedtuple('Score', 'score,scale')
+TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child')
 TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule')
 Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale')
 
@@ -101,9 +102,25 @@ class FilteredModel (Model):
         assert len(X) == len(L)
         assert len(X) == len(S)
         for x, y, l, s in itertools.izip(X, Y, L, S):
-            detections += [
-                self.filtered_start.Parse(x=x, y=y, l=l, s=s, ds=0, model=self)
-            ]
+            parsed = self.filtered_start.Parse(x=x, y=y, l=l, s=s, ds=0, model=self)
+            detwindow = parsed.rule.detwindow
+            shiftwindow = parsed.rule.shiftwindow
+            scale = self.filtered_start.score[parsed.l].scale
+
+            x1 = (parsed.x-shiftwindow[1]-self.maxsize[1]*(1<<parsed.ds))*scale
+            y1 = (parsed.y-shiftwindow[0]-self.maxsize[0]*(1<<parsed.ds))*scale
+            x2 = x1+detwindow[1]*scale-1
+            y2 = y1+detwindow[0]*scale-1
+
+            root = TreeRoot (
+                x1=x1,
+                y1=y1,
+                x2=x2,
+                y2=y2,
+                s=parsed.s,
+                child=parsed,                
+            )
+            detections += [root]
 
         return detections
 
@@ -128,7 +145,7 @@ class Filter(object):
     def GetParameters (self):
         if self._w is None:
             if self.flip:
-                self._w = self.blocklabel.w[:, ::-1, _p]
+                self._w = self.blocklabel.w[:, ::-1, Filter._p]
             else:
                 self._w = self.blocklabel.w
 
