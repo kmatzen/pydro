@@ -124,6 +124,32 @@ def filter_model_small_test():
             else:
                 assert numpy.fabs(diff).max() < 2e-2
 
+    for i in xrange(len(filtered_model.filtered_start.score)):
+        mine = filtered_model.filtered_start.score[i].score
+        given = correct['model_scored'][0,0][5][0,0][2][0,i]
+
+        if not isinstance(mine, numpy.ndarray):
+            assert mine == -numpy.inf
+            assert (given == -numpy.inf).all()
+            continue
+
+        Iy1, Ix1 = numpy.where(mine == -numpy.inf)
+        Iy2, Ix2 = numpy.where(given == -numpy.inf)
+
+        assert (Iy1 == Iy2).all()
+        assert (Ix1 == Ix2).all()
+
+        diff = given - mine
+        diff = diff[numpy.logical_not(numpy.isnan(diff))]
+
+        if diff.size > 0:
+            print(numpy.fabs(diff).max())
+            if filtered_model.filtered_start.score[i].scale > 1:
+                assert numpy.fabs(diff).max() < 1e-1
+            else:
+                assert numpy.fabs(diff).max() < 2e-2
+
+
 def deformation_test():
     data = scipy.io.loadmat('tests/deformation_example.mat')
 
