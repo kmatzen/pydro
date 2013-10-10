@@ -105,7 +105,7 @@ class FilteredModel (Model):
             parsed = self.filtered_start.Parse(x=x, y=y, l=l, s=s, ds=0, model=self)
             detwindow = parsed.rule.detwindow
             shiftwindow = parsed.rule.shiftwindow
-            scale = self.filtered_start.score[parsed.l].scale
+            scale = self.sbin / self.filtered_start.score[parsed.l].scale
 
             x1 = (parsed.x-shiftwindow[1]-self.maxsize[1]*(1<<parsed.ds))*scale
             y1 = (parsed.y-shiftwindow[0]-self.maxsize[0]*(1<<parsed.ds))*scale
