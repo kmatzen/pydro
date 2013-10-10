@@ -18,7 +18,7 @@ def ShowDetections(trees, image):
 
     for tree in trees:
         q = Queue.Queue()
-        q.put((tree, 0))
+        q.put((tree.child, 0))
 
         while not q.empty():
             node, depth = q.get()
