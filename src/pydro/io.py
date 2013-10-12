@@ -1,3 +1,4 @@
+import weakref
 import copy
 import itertools
 import Queue
@@ -129,8 +130,10 @@ def _denormalize_model(model):
             symbol.filter = filter_idx
 
         for rule in symbol.rules:
+            """
             if rule.lhs not in symbols:
                 raise Exception('lhs should have already been touched')
+            """
 
             for rhs_symbol in rule.rhs:
                 symbol_queue.put(rhs_symbol)
@@ -139,7 +142,7 @@ def _denormalize_model(model):
         symbol = symbols_rev[symbol_idx]
         rule_group = symbol.rules
         for rule in rule_group:
-            rule.lhs = symbols[rule.lhs]
+            #rule.lhs = symbols[rule.lhs]
             rule.rhs = [symbols[a] for a in rule.rhs]
 
             for block in rule.blocks:
@@ -193,9 +196,11 @@ def _normalize_model(model):
 
     for rule_group in model.rules:
         for rule in rule_group:
+            """
             lhs_idx = rule.lhs
             lhs = model.symbols[lhs_idx - 1]
             rule.lhs = lhs
+            """
 
             rhs_idx = rule.rhs
             rhs = [model.symbols[a - 1] for a in rhs_idx]
@@ -222,10 +227,10 @@ def _normalize_model(model):
     start = model.symbols[start_idx - 1]
     model.start = start
 
-    del model.symbols
     del model.blocks
     del model.filters
     del model.rules
+    del model.symbols
 
     return model
 

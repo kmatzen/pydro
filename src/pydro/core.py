@@ -3,6 +3,7 @@ from pydro.detection import FilterPyramid, DeformationCost
 import itertools
 import numpy
 from collections import namedtuple
+import weakref
 
 __all__ = [
     'Offset',
@@ -157,7 +158,10 @@ class Rule(object):
     def __init__(self, type, lhs, rhs, detwindow, shiftwindow, i,
                  offset, loc, blocks, metadata={}):
         self.type = type
-        self.lhs = lhs
+        if isinstance(lhs, Symbol):
+            self.lhs = weakref.ref(lhs)
+        else:
+            self.lhs = lhs
         self.rhs = rhs
         self.detwindow = detwindow
         self.shiftwindow = shiftwindow
@@ -168,7 +172,7 @@ class Rule(object):
         self.metadata = metadata
 
     def __repr__(self):
-        return '%s: %s' % (self.type, len(self.rhs))
+        return '%s: %s' % (self.type, super(Rule, self).__repr__())
 
     def GetFilteredSize(self, pyramid):
         size_pyramid = [(1, 1) for level in pyramid]
@@ -409,8 +413,11 @@ class Symbol(object):
         self.filter = filter
         self.rules = rules
 
+    """
     def __repr__(self):
-        return '%s\t%s' % (self.type, '\n\t'.join(str(type(r)) for r in self.rules))
+        print(self.__dict__)
+        return '%s\t%s' % (self.type, super(Symbol, self).__repr__())
+    """
 
     def Filter(self, pyramid, model, filtered_size):
         if self.type == 'T' and isinstance(self, FilteredSymbol):
