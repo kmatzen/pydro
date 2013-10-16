@@ -26,7 +26,12 @@ def NMS (detection_generator, threshold):
     accepted = []
 
     for detection in detection_generator:
+        success = True
         for existing in accepted:
-            if _overlap(detection, existing) <= threshold:
-                accepted += [detection]
-                yield accepted
+            if _overlap(detection, existing) > threshold:
+                success = False
+                break
+
+        if success:
+            accepted += [detection]
+            yield detection
