@@ -70,7 +70,7 @@ class FilteredModel (Model):
 
         self.filtered_start = self.start.Filter(pyramid, self, filtered_size)
 
-    def Parse(self, threshold, limit=None):
+    def Parse(self, threshold):
         X = numpy.array([], dtype=numpy.uint32)
         Y = numpy.array([], dtype=numpy.uint32)
         L = numpy.array([], dtype=numpy.uint32)
@@ -85,12 +85,9 @@ class FilteredModel (Model):
                 S = numpy.hstack((S, Si))
                 L = numpy.hstack((L, Li))
 
-        if limit is None:
-            limit = S.size
-
         order = list(enumerate(S))
         order.sort(key=lambda k: -k[1])
-        order = numpy.array([o[0] for o in order[:limit]], dtype=numpy.uint32)
+        order = numpy.array([o[0] for o in order], dtype=numpy.uint32)
 
         X = X[order]
         Y = Y[order]

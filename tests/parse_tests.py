@@ -1,6 +1,7 @@
 from pydro.io import *
 from pydro.features import *
 
+import itertools
 import scipy.misc
 
 def parse_small_test():
@@ -14,7 +15,7 @@ def parse_small_test():
 
     filtered_model = model.Filter(pyramid)
 
-    detections = filtered_model.Parse(-2, 1)
+    detections = [d for i,d in itertools.izip(xrange(1), filtered_model.Parse(-2))]
 
 def parse_test():
     model = LoadModel('tests/example.dpm')
@@ -24,5 +25,5 @@ def parse_test():
 
     filtered_model = model.Filter(pyramid)
 
-    detections = filtered_model.Parse(-2, 1)
+    detections = [d for i,d in itertools.izip(xrange(1), filtered_model.Parse(-2))]
 
