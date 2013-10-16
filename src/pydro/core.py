@@ -118,10 +118,8 @@ class FilteredModel (Model):
                 s=parsed.s,
                 child=parsed,                
             )
-            detections += [root]
 
-        return detections
-
+            yield root
 
 class Filter(object):
 
