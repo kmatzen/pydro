@@ -34,16 +34,7 @@ Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale')
 class Model(object):
 
     def __init__(self, clss, year, note, start, maxsize, minsize,
-                 interval, sbin, thresh, type, features, stats,
-                 rules=None, symbols=None, filters=None, blocks=None):
-        if rules is not None:
-            self.rules = rules
-        if symbols is not None:
-            self.symbols = symbols
-        if filters is not None:
-            self.filters = filters
-        if blocks is not None:
-            self.blocks = blocks
+                 interval, sbin, thresh, type, features, stats):
         self.clss = clss
         self.year = year
         self.note = note
@@ -136,15 +127,17 @@ class Filter(object):
         self.size = size
         self.flip = flip
         self.symbol = symbol
-        self._w = None
+
+        if self.flip:
+            self._w = self.blocklabel.w[:, ::-1, Filter._p]
+        else:
+            self._w = self.blocklabel.w
+
+
+    def SetSymbol (self, symbol):
+        self.symbol = weakref.ref(symbol)
 
     def GetParameters (self):
-        if self._w is None:
-            if self.flip:
-                self._w = self.blocklabel.w[:, ::-1, Filter._p]
-            else:
-                self._w = self.blocklabel.w
-
         return self._w
 
 
@@ -168,6 +161,9 @@ class Rule(object):
 
     def __repr__(self):
         return '%s: %s' % (self.type, super(Rule, self).__repr__())
+
+    def SetLHS (self, lhs):
+        self.lhs = weakref.ref(lhs)
 
     def GetFilteredSize(self, pyramid):
         size_pyramid = [(1, 1) for level in pyramid]
