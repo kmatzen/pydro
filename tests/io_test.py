@@ -1,5 +1,7 @@
 from pydro.io import *
 
+import itertools
+
 def read_test():
     model = LoadModel('tests/example.dpm')
 
@@ -8,9 +10,16 @@ def write_test():
     SaveModel('tests/write_test.dpm', model)
 
 def compare (obja, objb):
-    if isinstance(obja, str) and isinstance(objb, str):
+    if type(obja) != type(objb):
+        return False
+
+    if type(obja) in (str,int):
         return obja == objb
-    elif isinstance(obja, object) and isinstance(objb, object):
+    elif type(obja) == list:
+        if len(obja) != len(objb):
+            return False
+        return all(compare(a, b) for a, b in itertools.izip(obja, objb)) 
+    elif isinstance(obja, object):
         dicta = obja.__dict__
         dictb = objb.__dict__
 
@@ -25,6 +34,9 @@ def compare (obja, objb):
             valueb = dictb[name]
 
             return compare(valuea, valueb)
+    else:
+        print(type(obja), type(objb))
+        return False
 
 def wr_test():
     model = LoadModel('tests/example.dpm')
