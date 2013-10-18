@@ -16,9 +16,9 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
     if extra_octave is None:
         extra_octave = model.features.extra_octave
     if padx is None:
-        padx = model.maxsize[1]+1
+        padx = model.maxsize[1]
     if pady is None:
-        pady = model.maxsize[0]+1
+        pady = model.maxsize[0]
 
     if len(image.shape) == 2:
         image = numpy.dstack((image, image, image))
@@ -39,17 +39,17 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
 
             if extra_octave:
                 yield Level(
-                    features=ComputeFeatures(scaled, sbin / 4, padx, pady),
+                    features=ComputeFeatures(scaled, sbin / 4, padx+1, pady+1),
                     scale=4 * scale,
                 )
 
             yield Level(
-                features=ComputeFeatures(scaled, sbin / 2, padx, pady),
+                features=ComputeFeatures(scaled, sbin / 2, padx+1, pady+1),
                 scale=2 * scale,
             )
 
             yield Level(
-                features=ComputeFeatures(scaled, sbin, padx, pady),
+                features=ComputeFeatures(scaled, sbin, padx+1, pady+1),
                 scale=scale,
             )
 
@@ -60,7 +60,7 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
                 scaled = ResizeImage(image, y, x)
 
                 yield Level(
-                    features=ComputeFeatures(scaled, sbin, padx, pady),
+                    features=ComputeFeatures(scaled, sbin, padx+1, pady+1),
                     scale=scale,
                 )
 

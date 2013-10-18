@@ -99,8 +99,8 @@ class FilteredModel (Model):
             shiftwindow = parsed.rule.shiftwindow
             scale = self.sbin / self.filtered_start.score[parsed.l].scale
 
-            x1 = (parsed.x-shiftwindow[1]-self.maxsize[1]*(1<<parsed.ds))*scale
-            y1 = (parsed.y-shiftwindow[0]-self.maxsize[0]*(1<<parsed.ds))*scale
+            x1 = (parsed.x-shiftwindow[1]-self.pyramid.padx*(1<<parsed.ds))*scale
+            y1 = (parsed.y-shiftwindow[0]-self.pyramid.pady*(1<<parsed.ds))*scale
             x2 = x1+detwindow[1]*scale-1
             y2 = y1+detwindow[0]*scale-1
 
@@ -139,8 +139,8 @@ class Filter(object):
             self._w = self.blocklabel.w
 
     def GetFeatures (self, model, node):
-        fy = node.y - model.maxsize[0]*((1<<node.ds) - 1)
-        fx = node.x - model.maxsize[1]*((1<<node.ds) - 1)
+        fy = node.y - model.pyramid.pady*((1<<node.ds) - 1)
+        fx = node.x - model.pyramid.padx*((1<<node.ds) - 1)
 
         feat = model.pyramid.levels[node.l].features[fy:fy+self.size[0],fx:fx+self.size[1],:]
         if self.flip:
@@ -284,19 +284,19 @@ class FilteredDeformationRule(DeformationRule):
         Ix = self.Ix[l]
         Iy = self.Iy[l]
 
-        nvp_y = y - model.maxsize[0] * ((1 << ds) - 1)
-        nvp_x = x - model.maxsize[1] * ((1 << ds) - 1)
+        nvp_y = y - model.pyramid.pady * ((1 << ds) - 1)
+        nvp_x = x - model.pyramid.padx * ((1 << ds) - 1)
 
         rhs_nvp_x = Ix[nvp_y, nvp_x]
         rhs_nvp_y = Iy[nvp_y, nvp_x]
 
-        rhs_x = rhs_nvp_x + model.maxsize[1] * ((1 << ds) - 1)
-        rhs_y = rhs_nvp_y + model.maxsize[0] * ((1 << ds) - 1)
+        rhs_x = rhs_nvp_x + model.pyramid.padx * ((1 << ds) - 1)
+        rhs_y = rhs_nvp_y + model.pyramid.pady * ((1 << ds) - 1)
 
         symbol, = self.filtered_rhs
 
-        nvp_x = rhs_x - model.maxsize[1] * ((1 << ds) - 1)
-        nvp_y = rhs_y - model.maxsize[0] * ((1 << ds) - 1)
+        nvp_x = rhs_x - model.pyramid.padx * ((1 << ds) - 1)
+        nvp_y = rhs_y - model.pyramid.pady * ((1 << ds) - 1)
         rhs_s = symbol.score[l].score[nvp_y, nvp_x]
 
         children = [symbol.Parse(
@@ -358,8 +358,8 @@ class FilteredStructuralRule(StructuralRule):
 
             step = 2 ** ds
 
-            virtpadx = (step - 1) * model.maxsize[1]
-            virtpady = (step - 1) * model.maxsize[0]
+            virtpadx = (step - 1) * model.pyramid.padx
+            virtpady = (step - 1) * model.pyramid.pady
 
             startx = ax - virtpadx + 1
             starty = ay - virtpady + 1
@@ -443,8 +443,8 @@ class FilteredStructuralRule(StructuralRule):
 
             rhs_ds = ds + ads
 
-            nvp_y = rhs_y - model.maxsize[0] * ((1 << rhs_ds) - 1)
-            nvp_x = rhs_x - model.maxsize[1] * ((1 << rhs_ds) - 1)
+            nvp_y = rhs_y - model.pyramid.pady * ((1 << rhs_ds) - 1)
+            nvp_x = rhs_x - model.pyramid.padx * ((1 << rhs_ds) - 1)
 
             rhs_s = symbol.score[rhs_l].score[nvp_y, nvp_x]
 
@@ -557,14 +557,14 @@ class FilteredSymbol(Symbol):
         if self.type == 'T':
             scale = model.sbin / self.score[l].scale
 
-            x1 = (x - model.maxsize[1] * (1 << ds)) * scale
-            y1 = (y - model.maxsize[0] * (1 << ds)) * scale
+            x1 = (x - model.pyramid.padx * (1 << ds)) * scale
+            y1 = (y - model.pyramid.pady * (1 << ds)) * scale
             x2 = x1 + self.filter.GetParameters().shape[1] * scale - 1
             y2 = y1 + self.filter.GetParameters().shape[0] * scale - 1
 
             if model.loss_adjustment is not None:
-                nvp_y = y - model.maxsize[0] * ((1 << ds) - 1)
-                nvp_x = x - model.maxsize[1] * ((1 << ds) - 1)
+                nvp_y = y - model.pyramid.pady * ((1 << ds) - 1)
+                nvp_x = x - model.pyramid.padx * ((1 << ds) - 1)
                 loss = self.score[l].score[nvp_y,nvp_x] - self.filtered[l][nvp_y,nvp_x]
             else:
                 loss = None
@@ -588,8 +588,8 @@ class FilteredSymbol(Symbol):
         else:
             selected_rule = None
             for rule in self.filtered_rules:
-                nvp_y = y - model.maxsize[0] * ((1 << ds) - 1)
-                nvp_x = x - model.maxsize[1] * ((1 << ds) - 1)
+                nvp_y = y - model.pyramid.pady * ((1 << ds) - 1)
+                nvp_x = x - model.pyramid.padx * ((1 << ds) - 1)
 
                 score = rule.score[l].score[nvp_y, nvp_x]
 
