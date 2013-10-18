@@ -6,7 +6,7 @@ from collections import namedtuple
 import sys
 
 Level = namedtuple('Level', 'features,scale')
-
+Pyramid = namedtuple('Pyramid', 'levels,image,pady,padx')
 
 def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None, padx=None, pady=None):
     if sbin is None:
@@ -29,7 +29,7 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
         int(math.floor(
             math.log(min(image.shape[0:2]) / (5.0 * sbin)) / math.log(sc)))
 
-    def pyramid_generator():
+    def level_generator():
         for i in xrange(interval):
             scale = 1 / (sc ** i)
             x = int(round(image.shape[1] * scale))
@@ -64,7 +64,14 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
                     scale=scale,
                 )
 
-    pyramid = list(pyramid_generator())
-    pyramid.sort(key=lambda k: -k.scale)
+    levels = list(level_generator())
+    levels.sort(key=lambda k: -k.scale)
+
+    pyramid = Pyramid(
+        levels=levels,
+        pady=pady,
+        padx=padx,
+        image=image,
+    )
 
     return pyramid

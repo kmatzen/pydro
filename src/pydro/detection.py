@@ -5,9 +5,7 @@ __all__ = ['FilterPyramid', 'FilterImage', 'DeformationCost', 'NMS']
 
 
 def FilterPyramid(pyramid, filter, filtered_size):
-    # return [FilterImage(level.features, filter) for level in pyramid]
-
-    return FilterImages([level.features for level in pyramid], filter, 0, filtered_size)
+    return FilterImages([level.features for level in pyramid.levels], filter, 0, filtered_size)
 
 def _intersection (detection1, detection2):
     return max(0, min(detection1.x2,detection2.x2) - max(detection1.x1,detection2.x1))* \
