@@ -29,7 +29,7 @@ def build_pyramid_test():
 
     pyramid = BuildPyramid(image, sbin=sbin, interval=interval, extra_octave=True, padx=16, pady=7)
 
-    for level in pyramid:
+    for level in pyramid.levels:
 
         assert math.floor(image.shape[0]*level.scale/sbin) - level.features.shape[0] - 30 <= 2
         assert math.floor(image.shape[1]*level.scale/sbin) - level.features.shape[1] - 6 <= 2
@@ -48,8 +48,8 @@ def build_pyramid_test():
         assert (numpy.fabs(level.features[:,-16:,-1] - 1) < 1e-6).all()
 
     sc = 2**(1.0/interval)
-    scale = pyramid[0].scale
-    for level in pyramid[1:]:
+    scale = pyramid.levels[0].scale
+    for level in pyramid.levels[1:]:
         new_scale = level.scale
         assert math.fabs(new_scale/scale - 1/sc) < 1e-6
         scale = new_scale
@@ -64,9 +64,9 @@ def compare_pyramid_test():
 
     pyra = correct['pyra']
 
-    assert (numpy.fabs(pyra[0][0][1].flatten() - numpy.array([l.scale for l in pyramid])) < 1e-6).all()
+    assert (numpy.fabs(pyra[0][0][1].flatten() - numpy.array([l.scale for l in pyramid.levels])) < 1e-6).all()
 
-    for level, given in itertools.izip(pyramid, pyra[0][0][0]):
+    for level, given in itertools.izip(pyramid.levels, pyra[0][0][0]):
         given = given[0]
         assert level.features.shape == given.shape
         diff = level.features/given

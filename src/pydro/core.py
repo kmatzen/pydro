@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 Score = namedtuple('Score', 'score,scale')
-TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child,loss')
+TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child,loss,model')
 TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule,loss')
 Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale,x,y,l,s,ds,symbol,loss')
 
@@ -105,6 +105,7 @@ class FilteredModel (Model):
             y2 = y1+detwindow[0]*scale-1
 
             root = TreeRoot (
+                model=self,
                 x1=x1,
                 y1=y1,
                 x2=x2,
@@ -141,7 +142,7 @@ class Filter(object):
         fy = node.y - model.maxsize[0]*((1<<node.ds) - 1)
         fx = node.x - model.maxsize[1]*((1<<node.ds) - 1)
 
-        feat = model.pyramid[node.l].features[fy:fy+self.size[0],fx:fx+self.size[1],:]
+        feat = model.pyramid.levels[node.l].features[fy:fy+self.size[0],fx:fx+self.size[1],:]
         if self.flip:
             feat = feat[:,:,Filter._p]
 
@@ -180,12 +181,13 @@ class Rule(object):
         self.lhs = weakref.ref(lhs)
 
     def GetFilteredSize(self, pyramid):
-        size_pyramid = [(1, 1) for level in pyramid]
+        size_pyramid = [(1, 1) for level in pyramid.levels]
 
         for symbol in self.rhs:
             symbol_size_pyramid = symbol.GetFilteredSize(pyramid)
+            assert len(size_pyramid) == len(symbol_size_pyramid)
 
-            for i in xrange(len(pyramid)):
+            for i in xrange(len(symbol_size_pyramid)):
                 ymax, xmax = size_pyramid[i]
                 ycurr, xcurr = symbol_size_pyramid[i]
 
@@ -228,7 +230,7 @@ class FilteredDeformationRule(DeformationRule):
         bias = self.offset.GetParameters()
         loc_w = self.loc.GetParameters()
 
-        loc_f = numpy.zeros((3, len(model.pyramid)), dtype=numpy.float32)
+        loc_f = numpy.zeros((3, len(model.pyramid.levels)), dtype=numpy.float32)
         loc_f[0, 0:model.interval] = 1
         loc_f[1, model.interval:2 * model.interval] = 1
         loc_f[2, 2 * model.interval:] = 1
@@ -336,7 +338,7 @@ class FilteredStructuralRule(StructuralRule):
         bias = self.offset.GetParameters() * model.features.bias
         loc_w = self.loc.GetParameters()
 
-        loc_f = numpy.zeros((3, len(model.pyramid)))
+        loc_f = numpy.zeros((3, len(model.pyramid.levels)))
         loc_f[0, 0:model.interval] = 1
         loc_f[1, model.interval:2 * model.interval] = 1
         loc_f[2, 2 * model.interval:] = 1
@@ -401,10 +403,10 @@ class FilteredStructuralRule(StructuralRule):
                 else:
                     self.score[i][:] = -numpy.inf
 
-        assert len(model.pyramid) == len(self.score)
+        assert len(model.pyramid.levels) == len(self.score)
         self.score = [
             Score(scale=l.scale, score=s)
-            for l, s in itertools.izip(model.pyramid, self.score)
+            for l, s in itertools.izip(model.pyramid.levels, self.score)
         ]
 
     def GetFeatures (self, model, node):
@@ -499,15 +501,16 @@ class Symbol(object):
                     0] - self.filter.GetParameters().shape[0] + 1,
                 level.features.shape[
                     1] - self.filter.GetParameters().shape[1] + 1,
-            ) for level in pyramid]
+            ) for level in pyramid.levels]
 
         else:
-            size_pyramid = [(1, 1) for level in pyramid]
+            size_pyramid = [(1, 1) for level in pyramid.levels]
 
             for rule in self.rules:
                 rule_size_pyramid = rule.GetFilteredSize(pyramid)
+                assert len(rule_size_pyramid) == len(size_pyramid)
 
-                for i in xrange(len(pyramid)):
+                for i in xrange(len(rule_size_pyramid)):
                     ymax, xmax = size_pyramid[i]
                     ycurr, xcurr = rule_size_pyramid[i]
 
@@ -525,10 +528,10 @@ class FilteredSymbol(Symbol):
             filter = self.filter.GetParameters()
             self.filtered = FilterPyramid(model.pyramid, filter, model.filtered_size)
             assert len(model.filtered_size) == len(self.filtered)
-            assert len(model.pyramid) == len(self.filtered)
+            assert len(model.pyramid.levels) == len(self.filtered)
             self.score = [
                 Score(scale=level.scale, score=filtered)
-                for level, filtered in itertools.izip(model.pyramid, self.filtered)
+                for level, filtered in itertools.izip(model.pyramid.levels, self.filtered)
             ]
             if model.loss_adjustment:
                 self.score = model.loss_adjustment(self.score, self.filter.blocklabel)

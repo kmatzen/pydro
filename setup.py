@@ -83,6 +83,31 @@ pydro_detection = Extension(
     ]+include_dirs,
 )
 
+pydro_train = Extension(
+    'pydro._train',
+
+    sources=[
+        'src/pydro/_train.c'
+    ],
+
+    library_dirs=library_dirs,
+
+    libraries=libs,
+
+    extra_compile_args=[
+        '-g', 
+        '-O3', 
+        '-Wall', 
+        '-Werror', 
+        '-Wno-long-long',
+        '-funroll-loops',
+    ]+flags,
+
+    include_dirs=[
+        numpy.get_include(), 
+    ]+include_dirs,
+)
+
 pydro_features = Extension(
     'pydro._features',
 
@@ -120,6 +145,7 @@ setup (
     ext_modules=[
         pydro_detection,
         pydro_features,
+        pydro_train,
     ],
     packages=['pydro'],
     package_dir={'pydro':'src/pydro'},
