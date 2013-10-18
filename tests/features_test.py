@@ -27,7 +27,7 @@ def build_pyramid_test():
     sbin = 8
     interval = 10
 
-    pyramid = BuildPyramid(image, sbin, interval, True, 16, 7)
+    pyramid = BuildPyramid(image, sbin=sbin, interval=interval, extra_octave=True, padx=16, pady=7)
 
     for level in pyramid:
 
@@ -58,7 +58,7 @@ def compare_pyramid_test():
     image = scipy.misc.imread('tests/000034.jpg')
 
     model = LoadModel('tests/example.dpm')
-    pyramid = BuildPyramid(image, model.features.sbin, model.interval, False, 16, 7)
+    pyramid = BuildPyramid(image, sbin=model.features.sbin, interval=model.interval, extra_octave=False, padx=16, pady=7)
 
     correct = scipy.io.loadmat('tests/pyramid.mat')
 

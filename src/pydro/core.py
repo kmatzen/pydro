@@ -28,7 +28,7 @@ __all__ = [
 Score = namedtuple('Score', 'score,scale')
 TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child')
 TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule')
-Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale')
+Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale,x,y,l,s,ds,symbol')
 
 
 class Model(object):
@@ -133,6 +133,16 @@ class Filter(object):
         else:
             self._w = self.blocklabel.w
 
+    def GetFeatures (self, model, node, pyramid):
+        fy = node.y - model.maxsize[0]*((1<<node.ds) - 1)
+        fx = node.x - model.maxsize[1]*((1<<node.ds) - 1)
+
+        feat = pyramid[node.l].features[fy:fy+self.size[0],fx:fx+self.size[1],:]
+        if self.flip:
+            feat = feat[:,:,Filter._p]
+
+        return { self.blocklabel : feat.flatten() }
+
 
     def SetSymbol (self, symbol):
         self.symbol = weakref.ref(symbol)
@@ -236,6 +246,33 @@ class FilteredDeformationRule(DeformationRule):
         ]
         self.Ix = [d[1] for d in deformations]
         self.Iy = [d[2] for d in deformations]
+
+    def GetFeatures (self, model, node, pyramid):
+        offset_features = self.offset.GetFeatures (model, node, pyramid)
+        loc_features = self.loc.GetFeatures (model, node, pyramid)
+        df_features = self.df.GetFeatures (model, node, pyramid)
+        children_features = [child.symbol.GetFeatures (model, child, pyramid) for child in node.children]
+
+        features = {}
+
+        for k in offset_features:
+            assert k not in features
+            features[k] = offset_features[k]
+
+        for k in loc_features:
+            assert k not in features
+            features[k] = loc_features[k]
+
+        for k in df_features:
+            assert k not in features
+            features[k] = df_features[k]
+
+        for child_features in children_features:
+            for k in child_features:
+                assert k not in features
+                features[k] = child_features[k]
+
+        return features
 
     def Parse(self, x, y, l, s, ds, model):
         Ix = self.Ix[l]
@@ -366,6 +403,28 @@ class FilteredStructuralRule(StructuralRule):
             for l, s in itertools.izip(pyramid, self.score)
         ]
 
+    def GetFeatures (self, model, node, pyramid):
+        offset_features = self.offset.GetFeatures (model, node, pyramid)
+        loc_features = self.loc.GetFeatures (model, node, pyramid)
+        children_features = [child.symbol.GetFeatures (model, child, pyramid) for child in node.children]
+
+        features = {}
+
+        for k in offset_features:
+            assert k not in features
+            features[k] = offset_features[k]
+
+        for k in loc_features:
+            assert k not in features
+            features[k] = loc_features[k]
+
+        for child_features in children_features:
+            for k in child_features:
+                assert k not in features
+                features[k] = child_features[k]
+
+        return features
+
     def Parse(self, x, y, l, s, ds, model):
         assert len(self.anchor) == len(self.filtered_rhs)
         children = []
@@ -418,6 +477,16 @@ class Symbol(object):
         filtered_symbol = FilteredSymbol(self, pyramid, model, filtered_size)
 
         return filtered_symbol
+
+    def GetFeatures (self, model, node, pyramid):
+        assert self == node.symbol
+
+        if self.type == 'T':
+            assert isinstance (node, Leaf)
+            return self.filter.GetFeatures (model, node, pyramid)
+        else:
+            assert isinstance (node, TreeNode)
+            return node.rule.GetFeatures (model, node, pyramid) 
 
     def GetFilteredSize(self, pyramid):
         if self.type == 'T':
@@ -489,6 +558,12 @@ class FilteredSymbol(Symbol):
                 x2=x2,
                 y1=y1,
                 y2=y2,
+                x=x,
+                y=y,
+                l=l,
+                s=s,
+                ds=ds,
+                symbol=self,
                 scale=scale,
             )
 
@@ -564,14 +639,40 @@ class Def(object):
         self.blocklabel = blocklabel
         self.flip = flip
 
+        self._w = self.blocklabel.w.copy()
+        if self.flip:
+            self._w[1] *= -1
+
+    def GetFeatures (self, model, node, pyramid):
+        child_node, = node.children
+
+        dx = node.x - child_node.x
+        dy = node.y - child_node.y
+
+        df = numpy.array([-(dx**2),-dx,-(dy**2),-dy])
+        if self.flip:
+            df[1] *= -1
+
+        return { self.blocklabel : df }
+
     def GetParameters (self):
-        return self.blocklabel.w
+        return self._w
     
 
 class Loc(object):
 
     def __init__(self, blocklabel):
         self.blocklabel = blocklabel
+
+    def GetFeatures (self, model, node, pyramid):
+        loc_f = numpy.zeros((3,))
+        if node.l < model.interval:
+            loc_f[0] = 1
+        elif node.l < 2*model.interval:
+            loc_f[1] = 1
+        else:
+            loc_f[2] = 1
+        return { self.blocklabel : loc_f }
 
     def GetParameters (self):
         return self.blocklabel.w
@@ -580,6 +681,9 @@ class Offset(object):
 
     def __init__(self, blocklabel):
         self.blocklabel = blocklabel
+
+    def GetFeatures (self, model, node, pyramid):
+        return { self.blocklabel : numpy.array([model.features.bias]) }
 
     def GetParameters (self):
         return self.blocklabel.w

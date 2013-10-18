@@ -8,7 +8,18 @@ import sys
 Level = namedtuple('Level', 'features,scale')
 
 
-def BuildPyramid(image, sbin, interval, extra_interval, padx, pady):
+def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None, padx=None, pady=None):
+    if sbin is None:
+        sbin = model.sbin
+    if interval is None:
+        interval = model.interval
+    if extra_octave is None:
+        extra_octave = model.features.extra_octave
+    if padx is None:
+        padx = model.maxsize[1]+1
+    if pady is None:
+        pady = model.maxsize[0]+1
+
     if len(image.shape) == 2:
         image = numpy.dstack((image, image, image))
     image = image.astype(numpy.float32)
@@ -26,7 +37,7 @@ def BuildPyramid(image, sbin, interval, extra_interval, padx, pady):
             sys.stdout.flush()
             scaled = ResizeImage(image, y, x)
 
-            if extra_interval:
+            if extra_octave:
                 yield Level(
                     features=ComputeFeatures(scaled, sbin / 4, padx, pady),
                     scale=4 * scale,
