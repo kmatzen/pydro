@@ -48,18 +48,18 @@ class Model(object):
         self.features = features
         self.stats = stats
 
-    def Filter(self, pyramid):
-        return FilteredModel(self, pyramid)
+    def Filter(self, pyramid, loss_adjustment=None):
+        return FilteredModel(self, pyramid, loss_adjustment)
 
 
 class FilteredModel (Model):
 
-    def __init__(self, model, pyramid):
+    def __init__(self, model, pyramid, loss_adjustment):
         super(FilteredModel, self).__init__(**model.__dict__)
 
         filtered_size = self.start.GetFilteredSize(pyramid)
 
-        self.filtered_start = self.start.Filter(pyramid, self, filtered_size)
+        self.filtered_start = self.start.Filter(pyramid, self, filtered_size, loss_adjustment)
 
     def Parse(self, threshold):
         X = numpy.array([], dtype=numpy.uint32)
@@ -200,19 +200,19 @@ class DeformationRule(Rule):
 
         self.df = df
 
-    def Filter(self, pyramid, model, filtered_size):
-        return FilteredDeformationRule(self, pyramid, model, filtered_size)
+    def Filter(self, pyramid, model, filtered_size, loss_adjustment):
+        return FilteredDeformationRule(self, pyramid, model, filtered_size, loss_adjustment)
 
 
 class FilteredDeformationRule(DeformationRule):
 
-    def __init__(self, deformation_rule, pyramid, model, filtered_size):
+    def __init__(self, deformation_rule, pyramid, model, filtered_size, loss_adjustment):
         super(FilteredDeformationRule, self).__init__(
             **deformation_rule.__dict__
         )
 
         self.filtered_rhs = [
-            s.Filter(pyramid, model, filtered_size) for s in self.rhs
+            s.Filter(pyramid, model, filtered_size, loss_adjustment) for s in self.rhs
         ]
 
         def_w = self.df.GetParameters()
@@ -315,18 +315,18 @@ class StructuralRule(Rule):
 
         self.anchor = anchor
 
-    def Filter(self, pyramid, model, filtered_size):
-        return FilteredStructuralRule(self, pyramid, model, filtered_size)
+    def Filter(self, pyramid, model, filtered_size, loss_adjustment):
+        return FilteredStructuralRule(self, pyramid, model, filtered_size, loss_adjustment)
 
 
 class FilteredStructuralRule(StructuralRule):
 
-    def __init__(self, structural_rule, pyramid, model, filtered_size):
+    def __init__(self, structural_rule, pyramid, model, filtered_size, loss_adjustment):
         super(FilteredStructuralRule, self).__init__(
             **structural_rule.__dict__)
 
         self.filtered_rhs = [
-            s.Filter(pyramid, model, filtered_size) for s in self.rhs
+            s.Filter(pyramid, model, filtered_size, loss_adjustment) for s in self.rhs
         ]
 
         bias = self.offset.GetParameters() * model.features.bias
@@ -469,12 +469,12 @@ class Symbol(object):
         return '%s\t%s' % (self.type, super(Symbol, self).__repr__())
     """
 
-    def Filter(self, pyramid, model, filtered_size):
+    def Filter(self, pyramid, model, filtered_size, loss_adjustment):
         if self.type == 'T' and isinstance(self, FilteredSymbol):
             assert len(self.rules) == 0
             return self
 
-        filtered_symbol = FilteredSymbol(self, pyramid, model, filtered_size)
+        filtered_symbol = FilteredSymbol(self, pyramid, model, filtered_size, loss_adjustment)
 
         return filtered_symbol
 
@@ -514,7 +514,7 @@ class Symbol(object):
 
 class FilteredSymbol(Symbol):
 
-    def __init__(self, symbol, pyramid, model, filtered_size):
+    def __init__(self, symbol, pyramid, model, filtered_size, loss_adjustment):
         super(FilteredSymbol, self).__init__(**symbol.__dict__)
 
         if self.filter is not None:
@@ -530,7 +530,7 @@ class FilteredSymbol(Symbol):
             self.filtered_rules = []
         else:
             self.filtered_rules = [
-                r.Filter(pyramid, model, filtered_size) for r in self.rules
+                r.Filter(pyramid, model, filtered_size, loss_adjustment) for r in self.rules
             ]
 
             self.score = self.filtered_rules[0].score
