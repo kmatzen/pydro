@@ -22,13 +22,14 @@ __all__ = [
     'FilteredStructuralRule',
     'FilteredDeformationRule',
     'TreeNode',
-    'Leaf'
+    'Leaf',
+    'Score',
 ]
 
 Score = namedtuple('Score', 'score,scale')
-TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child')
-TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule')
-Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale,x,y,l,s,ds,symbol')
+TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child,loss')
+TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule,loss')
+Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale,x,y,l,s,ds,symbol,loss')
 
 
 class Model(object):
@@ -57,9 +58,11 @@ class FilteredModel (Model):
     def __init__(self, model, pyramid, loss_adjustment):
         super(FilteredModel, self).__init__(**model.__dict__)
 
-        filtered_size = self.start.GetFilteredSize(pyramid)
+        self.filtered_size = self.start.GetFilteredSize(pyramid)
+        self.loss_adjustment = loss_adjustment
+        self.pyramid = pyramid
 
-        self.filtered_start = self.start.Filter(pyramid, self, filtered_size, loss_adjustment)
+        self.filtered_start = self.start.Filter(self)
 
     def Parse(self, threshold):
         X = numpy.array([], dtype=numpy.uint32)
@@ -107,7 +110,8 @@ class FilteredModel (Model):
                 x2=x2,
                 y2=y2,
                 s=parsed.s,
-                child=parsed,                
+                child=parsed,
+                loss=parsed.loss, 
             )
 
             yield root
@@ -133,11 +137,11 @@ class Filter(object):
         else:
             self._w = self.blocklabel.w
 
-    def GetFeatures (self, model, node, pyramid):
+    def GetFeatures (self, model, node):
         fy = node.y - model.maxsize[0]*((1<<node.ds) - 1)
         fx = node.x - model.maxsize[1]*((1<<node.ds) - 1)
 
-        feat = pyramid[node.l].features[fy:fy+self.size[0],fx:fx+self.size[1],:]
+        feat = model.pyramid[node.l].features[fy:fy+self.size[0],fx:fx+self.size[1],:]
         if self.flip:
             feat = feat[:,:,Filter._p]
 
@@ -200,19 +204,19 @@ class DeformationRule(Rule):
 
         self.df = df
 
-    def Filter(self, pyramid, model, filtered_size, loss_adjustment):
-        return FilteredDeformationRule(self, pyramid, model, filtered_size, loss_adjustment)
+    def Filter(self, model):
+        return FilteredDeformationRule(self, model)
 
 
 class FilteredDeformationRule(DeformationRule):
 
-    def __init__(self, deformation_rule, pyramid, model, filtered_size, loss_adjustment):
+    def __init__(self, deformation_rule, model):
         super(FilteredDeformationRule, self).__init__(
             **deformation_rule.__dict__
         )
 
         self.filtered_rhs = [
-            s.Filter(pyramid, model, filtered_size, loss_adjustment) for s in self.rhs
+            s.Filter(model) for s in self.rhs
         ]
 
         def_w = self.df.GetParameters()
@@ -224,7 +228,7 @@ class FilteredDeformationRule(DeformationRule):
         bias = self.offset.GetParameters()
         loc_w = self.loc.GetParameters()
 
-        loc_f = numpy.zeros((3, len(pyramid)), dtype=numpy.float32)
+        loc_f = numpy.zeros((3, len(model.pyramid)), dtype=numpy.float32)
         loc_f[0, 0:model.interval] = 1
         loc_f[1, model.interval:2 * model.interval] = 1
         loc_f[2, 2 * model.interval:] = 1
@@ -247,11 +251,11 @@ class FilteredDeformationRule(DeformationRule):
         self.Ix = [d[1] for d in deformations]
         self.Iy = [d[2] for d in deformations]
 
-    def GetFeatures (self, model, node, pyramid):
-        offset_features = self.offset.GetFeatures (model, node, pyramid)
-        loc_features = self.loc.GetFeatures (model, node, pyramid)
-        df_features = self.df.GetFeatures (model, node, pyramid)
-        children_features = [child.symbol.GetFeatures (model, child, pyramid) for child in node.children]
+    def GetFeatures (self, model, node):
+        offset_features = self.offset.GetFeatures (model, node)
+        loc_features = self.loc.GetFeatures (model, node)
+        df_features = self.df.GetFeatures (model, node)
+        children_features = [child.symbol.GetFeatures (model, child) for child in node.children]
 
         features = {}
 
@@ -315,35 +319,35 @@ class StructuralRule(Rule):
 
         self.anchor = anchor
 
-    def Filter(self, pyramid, model, filtered_size, loss_adjustment):
-        return FilteredStructuralRule(self, pyramid, model, filtered_size, loss_adjustment)
+    def Filter(self, model):
+        return FilteredStructuralRule(self, model)
 
 
 class FilteredStructuralRule(StructuralRule):
 
-    def __init__(self, structural_rule, pyramid, model, filtered_size, loss_adjustment):
+    def __init__(self, structural_rule, model):
         super(FilteredStructuralRule, self).__init__(
             **structural_rule.__dict__)
 
         self.filtered_rhs = [
-            s.Filter(pyramid, model, filtered_size, loss_adjustment) for s in self.rhs
+            s.Filter(model) for s in self.rhs
         ]
 
         bias = self.offset.GetParameters() * model.features.bias
         loc_w = self.loc.GetParameters()
 
-        loc_f = numpy.zeros((3, len(pyramid)))
+        loc_f = numpy.zeros((3, len(model.pyramid)))
         loc_f[0, 0:model.interval] = 1
         loc_f[1, model.interval:2 * model.interval] = 1
         loc_f[2, 2 * model.interval:] = 1
 
         loc_scores = loc_w.dot(loc_f).flatten()
 
-        assert len(filtered_size) == len(loc_scores.flatten())
+        assert len(model.filtered_size) == len(loc_scores.flatten())
         self.score = [
             float(bias + loc_score) * numpy.ones(size, dtype=numpy.float32)
             for size, loc_score
-            in itertools.izip(filtered_size, loc_scores.flatten())
+            in itertools.izip(model.filtered_size, loc_scores.flatten())
         ]
 
         assert len(self.anchor) == len(self.filtered_rhs)
@@ -397,16 +401,16 @@ class FilteredStructuralRule(StructuralRule):
                 else:
                     self.score[i][:] = -numpy.inf
 
-        assert len(pyramid) == len(self.score)
+        assert len(model.pyramid) == len(self.score)
         self.score = [
             Score(scale=l.scale, score=s)
-            for l, s in itertools.izip(pyramid, self.score)
+            for l, s in itertools.izip(model.pyramid, self.score)
         ]
 
-    def GetFeatures (self, model, node, pyramid):
-        offset_features = self.offset.GetFeatures (model, node, pyramid)
-        loc_features = self.loc.GetFeatures (model, node, pyramid)
-        children_features = [child.symbol.GetFeatures (model, child, pyramid) for child in node.children]
+    def GetFeatures (self, model, node):
+        offset_features = self.offset.GetFeatures (model, node)
+        loc_features = self.loc.GetFeatures (model, node)
+        children_features = [child.symbol.GetFeatures (model, child) for child in node.children]
 
         features = {}
 
@@ -469,24 +473,24 @@ class Symbol(object):
         return '%s\t%s' % (self.type, super(Symbol, self).__repr__())
     """
 
-    def Filter(self, pyramid, model, filtered_size, loss_adjustment):
+    def Filter(self, model):
         if self.type == 'T' and isinstance(self, FilteredSymbol):
             assert len(self.rules) == 0
             return self
 
-        filtered_symbol = FilteredSymbol(self, pyramid, model, filtered_size, loss_adjustment)
+        filtered_symbol = FilteredSymbol(self, model)
 
         return filtered_symbol
 
-    def GetFeatures (self, model, node, pyramid):
+    def GetFeatures (self, model, node):
         assert self == node.symbol
 
         if self.type == 'T':
             assert isinstance (node, Leaf)
-            return self.filter.GetFeatures (model, node, pyramid)
+            return self.filter.GetFeatures (model, node)
         else:
             assert isinstance (node, TreeNode)
-            return node.rule.GetFeatures (model, node, pyramid) 
+            return node.rule.GetFeatures (model, node) 
 
     def GetFilteredSize(self, pyramid):
         if self.type == 'T':
@@ -514,23 +518,25 @@ class Symbol(object):
 
 class FilteredSymbol(Symbol):
 
-    def __init__(self, symbol, pyramid, model, filtered_size, loss_adjustment):
+    def __init__(self, symbol, model):
         super(FilteredSymbol, self).__init__(**symbol.__dict__)
 
         if self.filter is not None:
             filter = self.filter.GetParameters()
-            self.filtered = FilterPyramid(pyramid, filter, filtered_size)
-            assert len(filtered_size) == len(self.filtered)
-            assert len(pyramid) == len(self.filtered)
+            self.filtered = FilterPyramid(model.pyramid, filter, model.filtered_size)
+            assert len(model.filtered_size) == len(self.filtered)
+            assert len(model.pyramid) == len(self.filtered)
             self.score = [
                 Score(scale=level.scale, score=filtered)
-                for level, filtered in itertools.izip(pyramid, self.filtered)
+                for level, filtered in itertools.izip(model.pyramid, self.filtered)
             ]
+            if model.loss_adjustment:
+                self.score = model.loss_adjustment(self.score, self.filter.blocklabel)
 
             self.filtered_rules = []
         else:
             self.filtered_rules = [
-                r.Filter(pyramid, model, filtered_size, loss_adjustment) for r in self.rules
+                r.Filter(model) for r in self.rules
             ]
 
             self.score = self.filtered_rules[0].score
@@ -553,6 +559,13 @@ class FilteredSymbol(Symbol):
             x2 = x1 + self.filter.GetParameters().shape[1] * scale - 1
             y2 = y1 + self.filter.GetParameters().shape[0] * scale - 1
 
+            if model.loss_adjustment is not None:
+                nvp_y = y - model.maxsize[0] * ((1 << ds) - 1)
+                nvp_x = x - model.maxsize[1] * ((1 << ds) - 1)
+                loss = self.score[l].score[nvp_y,nvp_x] - self.filtered[l][nvp_y,nvp_x]
+            else:
+                loss = None
+
             leaf = Leaf(
                 x1=x1,
                 x2=x2,
@@ -565,6 +578,7 @@ class FilteredSymbol(Symbol):
                 ds=ds,
                 symbol=self,
                 scale=scale,
+                loss=loss,
             )
 
             return leaf
@@ -583,6 +597,9 @@ class FilteredSymbol(Symbol):
                 raise Exception('Rule argmax not found')
             rule = selected_rule
 
+            children = rule.Parse(x=x, y=y, l=l, s=s, ds=ds, model=model)
+            loss = None if model.loss_adjustment is None else sum(child.loss for child in children)
+
             node = TreeNode(
                 x=x,
                 y=y,
@@ -591,7 +608,8 @@ class FilteredSymbol(Symbol):
                 s=s,
                 symbol=self,
                 rule=selected_rule,
-                children=rule.Parse(x=x, y=y, l=l, s=s, ds=ds, model=model),
+                children=children,
+                loss=loss,
             )
 
             return node
@@ -643,7 +661,7 @@ class Def(object):
         if self.flip:
             self._w[1] *= -1
 
-    def GetFeatures (self, model, node, pyramid):
+    def GetFeatures (self, model, node):
         child_node, = node.children
 
         dx = node.x - child_node.x
@@ -664,7 +682,7 @@ class Loc(object):
     def __init__(self, blocklabel):
         self.blocklabel = blocklabel
 
-    def GetFeatures (self, model, node, pyramid):
+    def GetFeatures (self, model, node):
         loc_f = numpy.zeros((3,))
         if node.l < model.interval:
             loc_f[0] = 1
@@ -682,7 +700,7 @@ class Offset(object):
     def __init__(self, blocklabel):
         self.blocklabel = blocklabel
 
-    def GetFeatures (self, model, node, pyramid):
+    def GetFeatures (self, model, node):
         return { self.blocklabel : numpy.array([model.features.bias]) }
 
     def GetParameters (self):
