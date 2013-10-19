@@ -29,7 +29,7 @@ __all__ = [
 Score = namedtuple('Score', 'score,scale')
 TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child,loss,model')
 TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule,loss')
-Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale,x,y,l,s,ds,symbol,loss')
+Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale,x,y,l,s,ds,symbol')
 
 
 class Model(object):
@@ -253,6 +253,11 @@ class FilteredDeformationRule(DeformationRule):
         self.Ix = [d[1] for d in deformations]
         self.Iy = [d[2] for d in deformations]
 
+        if model.loss_adjustment:
+            self.score_original = self.score
+            self.score = model.loss_adjustment(deformation_rule, self.score)
+
+
     def GetFeatures (self, model, node):
         offset_features = self.offset.GetFeatures (model, node)
         loc_features = self.loc.GetFeatures (model, node)
@@ -409,6 +414,11 @@ class FilteredStructuralRule(StructuralRule):
             for l, s in itertools.izip(model.pyramid.levels, self.score)
         ]
 
+        if model.loss_adjustment:
+            self.score_original = self.score
+            self.score = model.loss_adjustment(structural_rule, self.score)
+
+
     def GetFeatures (self, model, node):
         offset_features = self.offset.GetFeatures (model, node)
         loc_features = self.loc.GetFeatures (model, node)
@@ -533,8 +543,6 @@ class FilteredSymbol(Symbol):
                 Score(scale=level.scale, score=filtered)
                 for level, filtered in itertools.izip(model.pyramid.levels, self.filtered)
             ]
-            if model.loss_adjustment:
-                self.score = model.loss_adjustment(self.score, self.filter.blocklabel)
 
             self.filtered_rules = []
         else:
@@ -562,13 +570,6 @@ class FilteredSymbol(Symbol):
             x2 = x1 + self.filter.GetParameters().shape[1] * scale - 1
             y2 = y1 + self.filter.GetParameters().shape[0] * scale - 1
 
-            if model.loss_adjustment is not None:
-                nvp_y = y - model.pyramid.pady * ((1 << ds) - 1)
-                nvp_x = x - model.pyramid.padx * ((1 << ds) - 1)
-                loss = self.score[l].score[nvp_y,nvp_x] - self.filtered[l][nvp_y,nvp_x]
-            else:
-                loss = None
-
             leaf = Leaf(
                 x1=x1,
                 x2=x2,
@@ -581,7 +582,6 @@ class FilteredSymbol(Symbol):
                 ds=ds,
                 symbol=self,
                 scale=scale,
-                loss=loss,
             )
 
             return leaf
@@ -601,7 +601,8 @@ class FilteredSymbol(Symbol):
             rule = selected_rule
 
             children = rule.Parse(x=x, y=y, l=l, s=s, ds=ds, model=model)
-            loss = None if model.loss_adjustment is None else sum(child.loss for child in children)
+            loss = None if model.loss_adjustment is None else sum(child.loss for child in children if isinstance(child, TreeNode)) + \
+                score - rule.score_original[l].score[nvp_y, nvp_x]
 
             node = TreeNode(
                 x=x,
