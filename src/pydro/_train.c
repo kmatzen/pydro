@@ -21,13 +21,13 @@ PyObject * compute_overlap (float bbx1, float bby1, float bbx2, float bby2,
     int im_area = h*w;
     int bbox_area = (bbx2-bbx1)*(bby2-bby1);
     int im_clip = ((double)bbox_area / (double)im_area) < 0.7;
-    npy_intp dims[2] = { fdimy, fdimx };
+    npy_intp dims[2] = { dimy, dimx };
     int x, y;
 
     PyArrayObject * pyoverlap = (PyArrayObject*)PyArray_SimpleNew ((npy_intp)2, dims, NPY_FLOAT);
 
-    for (x = 0; x < fdimx; ++x) {
-        for (y = 0; y < fdimy; ++y) {
+    for (x = 0; x < dimx; ++x) {
+        for (y = 0; y < dimy; ++y) {
             float x1 = (x - padx) * scale;
             float y1 = (y - pady) * scale;
             float x2 = x1 + fdimx*scale - 1;
@@ -56,6 +56,8 @@ PyObject * compute_overlap (float bbx1, float bby1, float bbx2, float bby2,
                 float union_area = filter_area + bbox_area - int_area;
 
                 *(float*)PyArray_GETPTR2(pyoverlap, y, x) = int_area / union_area;
+            } else {
+                *(float*)PyArray_GETPTR2(pyoverlap, y, x) = 0;
             }
         }
     }
