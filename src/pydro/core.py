@@ -603,6 +603,8 @@ class FilteredSymbol(Symbol):
             children = rule.Parse(x=x, y=y, l=l, s=s, ds=ds, model=model)
             loss = None if model.loss_adjustment is None else sum(child.loss for child in children if isinstance(child, TreeNode)) + \
                 score - rule.score_original[l].score[nvp_y, nvp_x]
+            if loss is not None:
+                s -= loss
 
             node = TreeNode(
                 x=x,

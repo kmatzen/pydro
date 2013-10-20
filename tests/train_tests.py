@@ -33,6 +33,7 @@ def loss_adjustment_test():
 
     detections = [d for i,d in itertools.izip(xrange(1), filtered_model.Parse(-1))]
     print(detections[0].loss)
+    print(detections[0].s)
     assert math.fabs(detections[0].loss - 9) < 1e-5
 
 def neg_latent_test():
