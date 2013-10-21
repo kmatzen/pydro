@@ -6,6 +6,7 @@ import numpy
 import itertools
 from collections import namedtuple
 import scipy.misc
+import scipy.optimize
 
 __all__ = [
     'BuildFeatureVector',
@@ -14,6 +15,7 @@ __all__ = [
     'ComputeOverlap',
     'BBox',
     'OverlapLossAdjustment',
+    'Optimize',
 ]
 
 BBox = namedtuple('BBox', 'x1,y1,x2,y2')
@@ -54,3 +56,42 @@ def OverlapLossAdjustment (model, pyramid, threshold, value, rules, bbox):
         return adjusted_score
 
     return _overlap_loss_adjustment
+
+def Optimize (model, examples):
+    blocks = model.GetBlocks()
+    nParams = 0
+    block_sections = {}
+
+    for block in blocks:
+        end = nParams + block.w.size
+        block_sections[block] = (nParams,end)
+        nParams = end
+
+    x0 = numpy.zeros((nParams,))
+    for block in blocks:
+        start, end = block_sections[block]
+        x0[start:end] = block.w.flatten()
+
+    def _objective_function (x, *args):
+        g_packed = { block : numpy.zeros((block.w.size,)) for block in blocks }
+        for block in blocks:
+            start, end = block_sections[block]
+            block.w[:] = x[start:end].reshape(block.w.shape)
+
+        f = ObjectiveFunction (examples)
+
+        g = numpy.zeros(x.shape)
+        Gradient (examples, g_packed)
+        for block in blocks:
+            start, end = block_sections[block]
+            g[start:end] = g_packed[block]
+
+        return f, g
+
+    x, f, d = scipy.optimize.fmin_l_bfgs_b (_objective_function, x0)
+
+    for block in blocks:
+        start, end = block_sections[block]
+        block.w[:] = x[start:end].reshape(block.w.shape)
+
+    print(d)

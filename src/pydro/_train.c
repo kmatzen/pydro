@@ -65,6 +65,14 @@ PyObject * compute_overlap (float bbx1, float bby1, float bbx2, float bby2,
     return PyArray_Return (pyoverlap);
 }
 
+PyObject * objective_function (PyListObject * examples) {
+    return Py_BuildValue("i", 0);
+}
+
+PyObject * gradient (PyListObject * examples, PyDictObject * gradients) {
+    Py_RETURN_NONE;
+}
+
 static PyObject * ComputeOverlap(PyObject * self, PyObject * args)
 {
     float x1, x2, y1, y2;
@@ -75,6 +83,25 @@ static PyObject * ComputeOverlap(PyObject * self, PyObject * args)
     if (!PyArg_ParseTuple(args, "ffffiiiifiiii", &x1, &y1, &x2, &y2, &fdimy, &fdimx, &dimy, &dimx, &scale, &pady, &padx, &h, &w)) 
         return NULL;
     return compute_overlap(x1, y1, x2, y2, fdimy, fdimx, dimy, dimx, scale, pady, padx, h, w);
+}
+
+static PyObject * ObjectiveFunction (PyObject * self, PyObject * args) {
+    PyListObject * pyexamples;
+    if (!PyArg_ParseTuple (args, "O!", &PyList_Type, &pyexamples)) {
+        return NULL;
+    }
+
+    return objective_function (pyexamples);
+}
+
+static PyObject * Gradient (PyObject * self, PyObject * args) {
+    PyListObject * pyexamples;
+    PyDictObject * pygradients;
+    if (!PyArg_ParseTuple (args, "O!O!", &PyList_Type, &pyexamples, &PyDict_Type, &pygradients)) {
+        return NULL;
+    }
+
+    return gradient (pyexamples, pygradients);
 }
 
 #if PY_MAJOR_VERSION >= 3
@@ -94,6 +121,8 @@ static struct PyModuleDef moduledef = {
 #if PY_MAJOR_VERSION < 3
 static PyMethodDef _train_methods[] = {
     {"ComputeOverlap", ComputeOverlap, METH_VARARGS, "Compute detection overlaps with bbox."},
+    {"ObjectiveFunction", ObjectiveFunction, METH_VARARGS, "WL-SSVM objective function."},
+    {"Gradient", Gradient, METH_VARARGS, "WL-SSVM gradient."},
     {NULL}
 };
 #endif

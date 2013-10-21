@@ -80,3 +80,26 @@ def overlap_loss_test():
     M = 1
     pos, neg = PositiveLatentFeatures (model, pyramid, belief_adjustment, loss_adjustment, M)
 
+def optimize_test():
+    interval_fg = 5
+
+    model = LoadModel('tests/example.dpm')
+
+    image = scipy.misc.imread('tests/000034.jpg')
+    pyramid_orig = BuildPyramid (image, model=model)
+    filtered_model = model.Filter (pyramid_orig)
+    detection = filtered_model.Parse(-1).next()
+
+    bbox = BBox(x1=detection.x1, y1=detection.y1, x2=detection.x2, y2=detection.y2)
+
+    pyramid = BuildPyramid (image, model=model, interval=interval_fg)
+
+    loss_adjustment = OverlapLossAdjustment(model, pyramid, 0.5, 1, model.start.rules, bbox)
+    belief_adjustment = OverlapLossAdjustment(model, pyramid, 0.7, -numpy.inf, model.start.rules, bbox)
+
+    M = 1
+    pos, neg = PositiveLatentFeatures (model, pyramid, belief_adjustment, loss_adjustment, M)
+
+    examples = pos + neg
+
+    Optimize (model, examples)
