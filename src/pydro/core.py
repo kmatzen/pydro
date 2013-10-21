@@ -52,6 +52,9 @@ class Model(object):
     def Filter(self, pyramid, loss_adjustment=None):
         return FilteredModel(self, pyramid, loss_adjustment)
 
+    def GetBlocks (self):
+        return self.start.GetBlocks ()
+
 
 class FilteredModel (Model):
 
@@ -148,6 +151,8 @@ class Filter(object):
 
         return { self.blocklabel : feat.flatten() }
 
+    def GetBlocks (self):
+        return [self.blocklabel]
 
     def SetSymbol (self, symbol):
         self.symbol = weakref.ref(symbol)
@@ -195,6 +200,34 @@ class Rule(object):
 
         return size_pyramid
 
+    def GetFeatures (self, model, node):
+        offset_features = self.offset.GetFeatures (model, node)
+        loc_features = self.loc.GetFeatures (model, node)
+        children_features = [child.symbol.GetFeatures (model, child) for child in node.children]
+
+        features = {}
+
+        for k in offset_features:
+            assert k not in features
+            features[k] = offset_features[k]
+
+        for k in loc_features:
+            assert k not in features
+            features[k] = loc_features[k]
+
+        for child_features in children_features:
+            for k in child_features:
+                assert k not in features
+                features[k] = child_features[k]
+
+        return features
+
+    def GetBlocks (self):
+        blocks = self.offset.GetBlocks() + self.loc.GetBlocks()
+        for symbol in self.rhs:
+            blocks += symbol.GetBlocks()
+
+        return blocks
 
 class DeformationRule(Rule):
 
@@ -208,6 +241,25 @@ class DeformationRule(Rule):
 
     def Filter(self, model):
         return FilteredDeformationRule(self, model)
+
+    def GetFeatures (self, model, node):
+        features = super(DeformationRule, self).GetFeatures (model, node)
+
+        df_features = self.df.GetFeatures (model, node)
+
+        for k in df_features:
+            assert k not in features
+            features[k] = df_features[k]
+
+        return features
+
+    def GetBlocks (self):
+        blocks = super(DeformationRule, self).GetBlocks()
+
+        blocks += self.df.GetBlocks()
+
+        return blocks
+
 
 
 class FilteredDeformationRule(DeformationRule):
@@ -257,33 +309,6 @@ class FilteredDeformationRule(DeformationRule):
             self.score_original = self.score
             self.score = model.loss_adjustment(deformation_rule, self.score)
 
-
-    def GetFeatures (self, model, node):
-        offset_features = self.offset.GetFeatures (model, node)
-        loc_features = self.loc.GetFeatures (model, node)
-        df_features = self.df.GetFeatures (model, node)
-        children_features = [child.symbol.GetFeatures (model, child) for child in node.children]
-
-        features = {}
-
-        for k in offset_features:
-            assert k not in features
-            features[k] = offset_features[k]
-
-        for k in loc_features:
-            assert k not in features
-            features[k] = loc_features[k]
-
-        for k in df_features:
-            assert k not in features
-            features[k] = df_features[k]
-
-        for child_features in children_features:
-            for k in child_features:
-                assert k not in features
-                features[k] = child_features[k]
-
-        return features
 
     def Parse(self, x, y, l, s, ds, model):
         Ix = self.Ix[l]
@@ -419,27 +444,6 @@ class FilteredStructuralRule(StructuralRule):
             self.score = model.loss_adjustment(structural_rule, self.score)
 
 
-    def GetFeatures (self, model, node):
-        offset_features = self.offset.GetFeatures (model, node)
-        loc_features = self.loc.GetFeatures (model, node)
-        children_features = [child.symbol.GetFeatures (model, child) for child in node.children]
-
-        features = {}
-
-        for k in offset_features:
-            assert k not in features
-            features[k] = offset_features[k]
-
-        for k in loc_features:
-            assert k not in features
-            features[k] = loc_features[k]
-
-        for child_features in children_features:
-            for k in child_features:
-                assert k not in features
-                features[k] = child_features[k]
-
-        return features
 
     def Parse(self, x, y, l, s, ds, model):
         assert len(self.anchor) == len(self.filtered_rhs)
@@ -502,7 +506,16 @@ class Symbol(object):
             return self.filter.GetFeatures (model, node)
         else:
             assert isinstance (node, TreeNode)
-            return node.rule.GetFeatures (model, node) 
+            return node.rule.GetFeatures (model, node)
+
+    def GetBlocks (self):
+        if self.type == 'T':
+            return self.filter.GetBlocks ()
+        else:
+            blocks = []
+            for rule in self.rules:
+                blocks += rule.GetBlocks()
+            return blocks
 
     def GetFilteredSize(self, pyramid):
         if self.type == 'T':
@@ -679,6 +692,9 @@ class Def(object):
 
         return { self.blocklabel : df }
 
+    def GetBlocks (self):
+        return [self.blocklabel]
+
     def GetParameters (self):
         return self._w
     
@@ -698,6 +714,9 @@ class Loc(object):
             loc_f[2] = 1
         return { self.blocklabel : loc_f }
 
+    def GetBlocks (self):
+        return [self.blocklabel]
+
     def GetParameters (self):
         return self.blocklabel.w
 
@@ -708,6 +727,9 @@ class Offset(object):
 
     def GetFeatures (self, model, node):
         return { self.blocklabel : numpy.array([model.features.bias]) }
+
+    def GetBlocks (self):
+        return [self.blocklabel]
 
     def GetParameters (self):
         return self.blocklabel.w
