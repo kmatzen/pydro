@@ -42,7 +42,8 @@ def _type_unpacker(obj):
             dtype = numpy.float32
         elif obj['type'] == 'i':
             dtype = numpy.int32
-        array = numpy.fromstring(obj['data'], dtype=dtype).reshape(obj['shape'])
+        array = numpy.fromstring(
+            obj['data'], dtype=dtype).reshape(obj['shape'])
         array.flags.writeable = False
         return array
     elif '__model__' in obj:
@@ -104,34 +105,34 @@ def _denormalize_model(model):
     new_start = 1
 
     new_model = {
-        'clss' : model.clss,
-        'year' : model.year,
-        'note' : model.note,
-        'start' : new_start,
-        'maxsize' : model.maxsize,
-        'minsize' : model.minsize,
-        'interval' : model.interval,
-        'sbin' : model.sbin,
-        'thresh' : model.thresh,
-        'type' : model.type,
-        'features' : model.features.__dict__,
-        'stats' : model.stats.__dict__,
-        'rules' : [],
-        'symbols' : [],
-        'filters' : [],
-        'blocks' : [],
+        'clss': model.clss,
+        'year': model.year,
+        'note': model.note,
+        'start': new_start,
+        'maxsize': model.maxsize,
+        'minsize': model.minsize,
+        'interval': model.interval,
+        'sbin': model.sbin,
+        'thresh': model.thresh,
+        'type': model.type,
+        'features': model.features.__dict__,
+        'stats': model.stats.__dict__,
+        'rules': [],
+        'symbols': [],
+        'filters': [],
+        'blocks': [],
     }
 
     for old_symbol in old_symbols:
         if old_symbol.filter not in filters:
             if old_symbol.filter.blocklabel not in blocks:
                 new_block = {
-                    'w' : old_symbol.filter.blocklabel.w,
-                    'lb' : old_symbol.filter.blocklabel.lb,
-                    'learn' : old_symbol.filter.blocklabel.learn,
-                    'reg_mult' : old_symbol.filter.blocklabel.reg_mult,
-                    'dim' : old_symbol.filter.blocklabel.dim,
-                    'type' : old_symbol.filter.blocklabel.type,
+                    'w': old_symbol.filter.blocklabel.w,
+                    'lb': old_symbol.filter.blocklabel.lb,
+                    'learn': old_symbol.filter.blocklabel.learn,
+                    'reg_mult': old_symbol.filter.blocklabel.reg_mult,
+                    'dim': old_symbol.filter.blocklabel.dim,
+                    'type': old_symbol.filter.blocklabel.type,
                 }
                 new_model['blocks'] += [new_block]
                 blocks[old_symbol.filter.blocklabel] = len(new_model['blocks'])
@@ -141,10 +142,10 @@ def _denormalize_model(model):
             new_filter_symbol = symbols[old_symbol.filter.symbol()]
 
             new_filter = {
-                'blocklabel' : new_filter_blocklabel,
-                'size' : symbol.filter.size,
-                'flip' : symbol.filter.flip,
-                'symbol' : new_filter_symbol,
+                'blocklabel': new_filter_blocklabel,
+                'size': symbol.filter.size,
+                'flip': symbol.filter.flip,
+                'symbol': new_filter_symbol,
             }
 
             new_model['filters'] += [new_filter]
@@ -160,24 +161,24 @@ def _denormalize_model(model):
             for block in rule.blocks:
                 if block not in blocks:
                     new_block = {
-                        'w' : block.w,
-                        'lb' : block.lb,
-                        'learn' : block.learn,
-                        'reg_mult' : block.reg_mult,
-                        'dim' : block.dim,
-                        'type' : block.type,
+                        'w': block.w,
+                        'lb': block.lb,
+                        'learn': block.learn,
+                        'reg_mult': block.reg_mult,
+                        'dim': block.dim,
+                        'type': block.type,
                     }
                     new_model['blocks'] += [new_block]
                     blocks[block] = len(new_model['blocks'])
 
             new_loc_blocklabel = blocks[rule.loc.blocklabel]
             new_loc = {
-                'blocklabel' : new_loc_blocklabel,
+                'blocklabel': new_loc_blocklabel,
             }
 
             new_offset_blocklabel = blocks[rule.offset.blocklabel]
             new_offset = {
-                'blocklabel' : new_offset_blocklabel,
+                'blocklabel': new_offset_blocklabel,
             }
 
             new_blocks = [blocks[block] for block in rule.blocks]
@@ -186,40 +187,40 @@ def _denormalize_model(model):
                 new_df_blocklabel = blocks[rule.df.blocklabel]
 
                 new_df = {
-                    'flip' : rule.df.flip,
-                    'blocklabel' : new_df_blocklabel,
+                    'flip': rule.df.flip,
+                    'blocklabel': new_df_blocklabel,
                 }
 
                 new_rule = {
-                    'type' : rule.type,
-                    'lhs' : new_lhs,
-                    'rhs' : new_rhs,
-                    'detwindow' : rule.detwindow,
-                    'shiftwindow' : rule.shiftwindow,
-                    'i' : rule.i,
-                    'offset' : new_offset,
-                    'loc' : new_loc,
-                    'blocks' : new_blocks,
-                    'df' : new_df,
+                    'type': rule.type,
+                    'lhs': new_lhs,
+                    'rhs': new_rhs,
+                    'detwindow': rule.detwindow,
+                    'shiftwindow': rule.shiftwindow,
+                    'i': rule.i,
+                    'offset': new_offset,
+                    'loc': new_loc,
+                    'blocks': new_blocks,
+                    'df': new_df,
                 }
             else:
                 new_rule = {
-                    'type' : rule.type,
-                    'lhs' : new_lhs,
-                    'rhs' : new_rhs,
-                    'detwindow' : rule.detwindow,
-                    'shiftwindow' : rule.shiftwindow,
-                    'i' : rule.i,
-                    'anchor' : rule.anchor,
-                    'offset' : new_offset,
-                    'loc' : new_loc,
-                    'blocks' : new_blocks,
+                    'type': rule.type,
+                    'lhs': new_lhs,
+                    'rhs': new_rhs,
+                    'detwindow': rule.detwindow,
+                    'shiftwindow': rule.shiftwindow,
+                    'i': rule.i,
+                    'anchor': rule.anchor,
+                    'offset': new_offset,
+                    'loc': new_loc,
+                    'blocks': new_blocks,
                 }
             new_rules += [new_rule]
 
         new_symbol = {
-            'type' : symbol.type,
-            'filter' : filters[old_symbol.filter],
+            'type': symbol.type,
+            'filter': filters[old_symbol.filter],
         }
 
         new_model['symbols'] += [new_symbol]
@@ -230,7 +231,8 @@ def _denormalize_model(model):
 
 
 def _normalize_model(model):
-    new_blocks = {i+1:Block(**block) for i, block in enumerate(model['blocks'])}
+    new_blocks = {i + 1: Block(**block)
+                  for i, block in enumerate(model['blocks'])}
 
     new_rules = {}
     new_symbols = {}
@@ -242,16 +244,17 @@ def _normalize_model(model):
         block_idx = filter['blocklabel']
         block = new_blocks[block_idx]
 
-        new_filter = Filter (
+        new_filter = Filter(
             blocklabel=block,
             size=filter['size'],
             flip=filter['flip'],
             symbol=None,
         )
 
-        new_filters[pos+1] = new_filter
+        new_filters[pos + 1] = new_filter
 
-    symbol_rule_list = list(enumerate(itertools.izip(model['symbols'], model['rules'])))
+    symbol_rule_list = list(
+        enumerate(itertools.izip(model['symbols'], model['rules'])))
     symbol_rule_list.reverse()
 
     for pos, (symbol, rules) in symbol_rule_list:
@@ -270,7 +273,7 @@ def _normalize_model(model):
             offset_idx = rule['offset']['blocklabel']
             offset_block = new_blocks[offset_idx]
 
-            new_offset = Offset (
+            new_offset = Offset(
                 blocklabel=offset_block,
             )
 
@@ -286,7 +289,7 @@ def _normalize_model(model):
                     flip=rule['df']['flip'],
                 )
 
-                new_rule = DeformationRule (
+                new_rule = DeformationRule(
                     type=rule['type'],
                     lhs=None,
                     rhs=new_rhs,
@@ -299,7 +302,7 @@ def _normalize_model(model):
                     blocks=new_rule_blocks,
                 )
             elif rule['type'] == 'S':
-                new_rule = StructuralRule (
+                new_rule = StructuralRule(
                     type=rule['type'],
                     lhs=None,
                     rhs=new_rhs,
@@ -314,36 +317,35 @@ def _normalize_model(model):
 
             new_rules += [new_rule]
 
-        new_symbol = Symbol (
+        new_symbol = Symbol(
             type=symbol['type'],
             filter=new_filters[symbol['filter']],
-            rules=new_rules,            
+            rules=new_rules,
         )
 
-        new_symbols[pos+1] = new_symbol
+        new_symbols[pos + 1] = new_symbol
 
     for pos, (symbol, rules) in symbol_rule_list:
-        new_symbol = new_symbols[pos+1]
+        new_symbol = new_symbols[pos + 1]
 
         for rule, new_rule in itertools.izip(rules, new_symbol.rules):
             lhs_idx = rule['lhs']
             new_lhs = new_symbols[lhs_idx]
 
-            new_rule.SetLHS (new_lhs)
+            new_rule.SetLHS(new_lhs)
 
             assert new_rule.lhs() == new_symbol
 
     for pos, filter in enumerate(model['filters']):
-        new_filter = new_filters[pos+1]
+        new_filter = new_filters[pos + 1]
         new_symbol = new_symbols[filter['symbol']]
 
-        new_filter.SetSymbol (new_symbol)
-
+        new_filter.SetSymbol(new_symbol)
 
     start_idx = model['start']
     new_start = new_symbols[start_idx]
 
-    new_model = Model (
+    new_model = Model(
         clss=model['clss'],
         year=model['year'],
         note=model['note'],

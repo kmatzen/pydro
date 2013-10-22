@@ -50,8 +50,8 @@ class Model(object):
     def Filter(self, pyramid, loss_adjustment=None):
         return FilteredModel(self, pyramid, loss_adjustment)
 
-    def GetBlocks (self):
-        return self.start.GetBlocks ()
+    def GetBlocks(self):
+        return self.start.GetBlocks()
 
 
 class FilteredModel (Model):
@@ -78,8 +78,8 @@ class FilteredModel (Model):
 
         self.start = model.start.Filter(self)
 
-    def Filter (self, loss_adjustment=None):
-        return FilteredModel (self, self.pyramid, self.loss_adjustment)
+    def Filter(self, loss_adjustment=None):
+        return FilteredModel(self, self.pyramid, self.loss_adjustment)
 
     def Parse(self, threshold):
         X = numpy.array([], dtype=numpy.uint32)
@@ -120,12 +120,14 @@ class FilteredModel (Model):
             shiftwindow = parsed.rule.shiftwindow
             scale = self.pyramid.sbin / self.start.score[parsed.l].scale
 
-            x1 = (parsed.x-shiftwindow[1]-self.pyramid.padx*(1<<parsed.ds))*scale
-            y1 = (parsed.y-shiftwindow[0]-self.pyramid.pady*(1<<parsed.ds))*scale
-            x2 = x1+detwindow[1]*scale-1
-            y2 = y1+detwindow[0]*scale-1
+            x1 = (parsed.x - shiftwindow[
+                  1] - self.pyramid.padx * (1 << parsed.ds)) * scale
+            y1 = (parsed.y - shiftwindow[
+                  0] - self.pyramid.pady * (1 << parsed.ds)) * scale
+            x2 = x1 + detwindow[1] * scale - 1
+            y2 = y1 + detwindow[0] * scale - 1
 
-            root = TreeRoot (
+            root = TreeRoot(
                 model=self,
                 x1=x1,
                 y1=y1,
@@ -133,10 +135,11 @@ class FilteredModel (Model):
                 y2=y2,
                 s=parsed.s,
                 child=parsed,
-                loss=parsed.loss, 
+                loss=parsed.loss,
             )
 
             yield root
+
 
 class Filter(object):
 
@@ -160,23 +163,24 @@ class Filter(object):
         else:
             self._w = self.blocklabel.w
 
-    def GetFeatures (self, model, node):
-        fy = node.y - model.pyramid.pady*((1<<node.ds) - 1)
-        fx = node.x - model.pyramid.padx*((1<<node.ds) - 1)
+    def GetFeatures(self, model, node):
+        fy = node.y - model.pyramid.pady * ((1 << node.ds) - 1)
+        fx = node.x - model.pyramid.padx * ((1 << node.ds) - 1)
 
-        feat = model.pyramid.levels[node.l].features[fy:fy+self.size[0],fx:fx+self.size[1],:]
+        feat = model.pyramid.levels[node.l].features[
+            fy:fy + self.size[0], fx:fx + self.size[1], :]
         if self.flip:
-            feat = feat[:,:,Filter._p]
+            feat = feat[:, :, Filter._p]
 
-        return { self.blocklabel : feat.flatten() }
+        return {self.blocklabel: feat.flatten()}
 
-    def GetBlocks (self):
+    def GetBlocks(self):
         return [self.blocklabel]
 
-    def SetSymbol (self, symbol):
+    def SetSymbol(self, symbol):
         self.symbol = weakref.ref(symbol)
 
-    def GetParameters (self):
+    def GetParameters(self):
         return self._w
 
 
@@ -201,7 +205,7 @@ class Rule(object):
     def __repr__(self):
         return '%s: %s' % (self.type, super(Rule, self).__repr__())
 
-    def SetLHS (self, lhs):
+    def SetLHS(self, lhs):
         self.lhs = weakref.ref(lhs)
 
     def GetFilteredSize(self, pyramid):
@@ -219,10 +223,11 @@ class Rule(object):
 
         return size_pyramid
 
-    def GetFeatures (self, model, node):
-        offset_features = self.offset.GetFeatures (model, node)
-        loc_features = self.loc.GetFeatures (model, node)
-        children_features = [child.symbol.GetFeatures (model, child) for child in node.children]
+    def GetFeatures(self, model, node):
+        offset_features = self.offset.GetFeatures(model, node)
+        loc_features = self.loc.GetFeatures(model, node)
+        children_features = [child.symbol.GetFeatures(model, child)
+                             for child in node.children]
 
         features = {}
 
@@ -241,12 +246,13 @@ class Rule(object):
 
         return features
 
-    def GetBlocks (self):
+    def GetBlocks(self):
         blocks = self.offset.GetBlocks() + self.loc.GetBlocks()
         for symbol in self.rhs:
             blocks += symbol.GetBlocks()
 
         return blocks
+
 
 class DeformationRule(Rule):
 
@@ -261,10 +267,10 @@ class DeformationRule(Rule):
     def Filter(self, model):
         return FilteredDeformationRule(self, model)
 
-    def GetFeatures (self, model, node):
-        features = super(DeformationRule, self).GetFeatures (model, node)
+    def GetFeatures(self, model, node):
+        features = super(DeformationRule, self).GetFeatures(model, node)
 
-        df_features = self.df.GetFeatures (model, node)
+        df_features = self.df.GetFeatures(model, node)
 
         for k in df_features:
             assert k not in features
@@ -272,13 +278,12 @@ class DeformationRule(Rule):
 
         return features
 
-    def GetBlocks (self):
+    def GetBlocks(self):
         blocks = super(DeformationRule, self).GetBlocks()
 
         blocks += self.df.GetBlocks()
 
         return blocks
-
 
 
 class FilteredDeformationRule(DeformationRule):
@@ -309,7 +314,8 @@ class FilteredDeformationRule(DeformationRule):
         bias = self.offset.GetParameters()
         loc_w = self.loc.GetParameters()
 
-        loc_f = numpy.zeros((3, len(model.pyramid.levels)), dtype=numpy.float32)
+        loc_f = numpy.zeros(
+            (3, len(model.pyramid.levels)), dtype=numpy.float32)
         loc_f[0, 0:model.pyramid.interval] = 1
         loc_f[1, model.pyramid.interval:2 * model.pyramid.interval] = 1
         loc_f[2, 2 * model.pyramid.interval:] = 1
@@ -336,7 +342,6 @@ class FilteredDeformationRule(DeformationRule):
         if model.loss_adjustment:
             self.score_original = self.score
             self.score = model.loss_adjustment(deformation_rule, self.score)
-
 
     def Parse(self, x, y, l, s, ds, model):
         Ix = self.Ix[l]
@@ -484,8 +489,6 @@ class FilteredStructuralRule(StructuralRule):
             self.score_original = self.score
             self.score = model.loss_adjustment(structural_rule, self.score)
 
-
-
     def Parse(self, x, y, l, s, ds, model):
         assert len(self.anchor) == len(self.rhs)
         children = []
@@ -535,19 +538,19 @@ class Symbol(object):
 
         return symbol
 
-    def GetFeatures (self, model, node):
+    def GetFeatures(self, model, node):
         assert self == node.symbol
 
         if self.type == 'T':
-            assert isinstance (node, Leaf)
-            return self.filter.GetFeatures (model, node)
+            assert isinstance(node, Leaf)
+            return self.filter.GetFeatures(model, node)
         else:
-            assert isinstance (node, TreeNode)
-            return node.rule.GetFeatures (model, node)
+            assert isinstance(node, TreeNode)
+            return node.rule.GetFeatures(model, node)
 
-    def GetBlocks (self):
+    def GetBlocks(self):
         if self.type == 'T':
-            return self.filter.GetBlocks ()
+            return self.filter.GetBlocks()
         else:
             blocks = []
             for rule in self.rules:
@@ -610,7 +613,7 @@ class FilteredSymbol(Symbol):
 
         for s in self.score:
             s.score.flags.writeable = False
-    
+
         assert self.score is not None
 
     def Parse(self, x, y, l, s, ds, model):
@@ -719,64 +722,65 @@ class Def(object):
         if self.flip:
             self._w[1] *= -1
 
-    def GetFeatures (self, model, node):
+    def GetFeatures(self, model, node):
         child_node, = node.children
 
         dx = node.x - child_node.x
         dy = node.y - child_node.y
 
-        df = numpy.array([-(dx**2),-dx,-(dy**2),-dy])
+        df = numpy.array([-(dx ** 2), -dx, -(dy ** 2), -dy])
         if self.flip:
             df[1] *= -1
 
         df.flags.writeable = False
 
-        return { self.blocklabel : df }
+        return {self.blocklabel: df}
 
-    def GetBlocks (self):
+    def GetBlocks(self):
         return [self.blocklabel]
 
-    def GetParameters (self):
+    def GetParameters(self):
         return self._w
-    
+
 
 class Loc(object):
 
     def __init__(self, blocklabel):
         self.blocklabel = blocklabel
 
-    def GetFeatures (self, model, node):
+    def GetFeatures(self, model, node):
         loc_f = numpy.zeros((3,))
         if node.l < model.pyramid.interval:
             loc_f[0] = 1
-        elif node.l < 2*model.pyramid.interval:
+        elif node.l < 2 * model.pyramid.interval:
             loc_f[1] = 1
         else:
             loc_f[2] = 1
 
         loc_f.flags.writeable = False
 
-        return { self.blocklabel : loc_f }
+        return {self.blocklabel: loc_f}
 
-    def GetBlocks (self):
+    def GetBlocks(self):
         return [self.blocklabel]
 
-    def GetParameters (self):
+    def GetParameters(self):
         return self.blocklabel.w
+
 
 class Offset(object):
 
     def __init__(self, blocklabel):
         self.blocklabel = blocklabel
 
-    def GetFeatures (self, model, node):
+    def GetFeatures(self, model, node):
         bias = numpy.array([model.features.bias])
         bias.flags.writeable = False
 
-        return { self.blocklabel : bias }
+        return {self.blocklabel: bias}
 
-    def GetBlocks (self):
+    def GetBlocks(self):
         return [self.blocklabel]
 
-    def GetParameters (self):
+    def GetParameters(self):
         return self.blocklabel.w
