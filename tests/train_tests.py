@@ -2,6 +2,7 @@ from pydro.io import *
 from pydro.train import *
 from pydro.features import *
 from pydro.core import *
+from pydro.detection import *
 
 import itertools
 
@@ -127,4 +128,4 @@ def optimize_test():
         print(entry.score, entry.loss)
         assert math.fabs(entry.score - new_score) < 1e-4
 
-    Optimize (model, [example])
+    Optimize (model, examples=[example], C=0.001)

@@ -40,8 +40,8 @@ def ScoreVector (entry):
     return score
 
 def PositiveLatentFeatures (model, pyramid, belief_adjustment, loss_adjustment, M):
-    filtered_model_belief = model.Filter (pyramid, belief_adjustment)
-    belief = [BuildFeatureVector(d, belief=True, positive=True) for i,d in itertools.izip(xrange(1), filtered_model_belief.Parse(-numpy.inf))]
+    filtered_model_belief = model.Filter (pyramid, loss_adjustment=belief_adjustment)
+    belief = [BuildFeatureVector(d, belief=True, positive=True) for i,d in itertools.izip(xrange(1), filtered_model_belief.Parse(-1))]
 
     positive_dummy = [TrainingExample (
         features={},
@@ -50,14 +50,14 @@ def PositiveLatentFeatures (model, pyramid, belief_adjustment, loss_adjustment, 
         score=0.0,
     )]
     
-    filtered_model_loss = model.Filter (pyramid, loss_adjustment)
+    filtered_model_loss = filtered_model_belief.Filter (loss_adjustment=loss_adjustment)
     loss = [BuildFeatureVector(d, belief=False, positive=True) for i,d in itertools.izip(xrange(M), filtered_model_loss.Parse(-1))]
 
     return belief + positive_dummy + loss
 
 def NegativeLatentFeatures (model, pyramid, M):
     filtered_model = model.Filter(pyramid)
-    loss = [BuildFeatureVector(d, belief=False, positive=False) for i,d in itertools.izip(xrange(M), filtered_model.Parse(-numpy.inf))]
+    loss = [BuildFeatureVector(d, belief=False, positive=False) for i,d in itertools.izip(xrange(M), filtered_model.Parse(-1))]
 
     negative_dummy = [TrainingExample (
         features={},
@@ -82,18 +82,22 @@ def OverlapLossAdjustment (model, pyramid, threshold, value, rules, bbox):
                                       pyramid.image.shape[0], pyramid.image.shape[1])
             loss = numpy.zeros(overlap.shape)
             loss[overlap < threshold] = value
+            loss.flags.writeable = False
             adjusted_score += [Score(scale=level.scale, score=level.score+loss)]
+            for s in adjusted_score:
+                s.score.flags.writeable = False
 
         return adjusted_score
 
     return _overlap_loss_adjustment
 
-def Optimize (model, examples):
+def Optimize (model, examples, C):
     blocks = model.GetBlocks()
     nParams = 0
     block_sections = {}
 
     for block in blocks:
+        block.w.flags.writeable = True
         end = nParams + block.w.size
         block_sections[block] = (nParams,end)
         nParams = end
@@ -134,7 +138,6 @@ def Optimize (model, examples):
             assert I is not None
             assert belief_I is not None
 
-            C = 0.001
             f += C * (V - belief_score)
 
             if I != belief_I:
@@ -165,5 +168,6 @@ def Optimize (model, examples):
     for block in blocks:
         start, end = block_sections[block]
         block.w[:] = x[start:end].reshape(block.w.shape)
+        block.w.flags.writeable = False
 
     print(d)

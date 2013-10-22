@@ -1,11 +1,32 @@
 from pydro._detection import *
 import multiprocessing
+import itertools
+from collections import namedtuple
 
-__all__ = ['FilterPyramid', 'FilterImage', 'DeformationCost', 'NMS']
+__all__ = [
+    'FilterPyramid', 
+    'FilterImage', 
+    'DeformationCost', 
+    'NMS',
+    'Score',
+]
 
+Score = namedtuple('Score', 'score,scale')
 
-def FilterPyramid(pyramid, filter, filtered_size):
-    return FilterImages([level.features for level in pyramid.levels], filter, 0, filtered_size)
+def FilterPyramid(pyramid, filter, size):
+    filtered = FilterImages([level.features for level in pyramid.levels], filter, 0, size)
+
+    for level in filtered:
+        level.flags.writeable = False
+
+    assert len(size) == len(filtered)
+    assert len(pyramid.levels) == len(filtered)
+    score = [
+        Score(scale=level.scale, score=filtered)
+        for level, filtered in itertools.izip(pyramid.levels, filtered)
+    ]
+
+    return score
 
 def _intersection (detection1, detection2):
     return max(0, min(detection1.x2,detection2.x2) - max(detection1.x1,detection2.x1))* \
