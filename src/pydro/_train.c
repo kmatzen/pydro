@@ -66,6 +66,7 @@ PyObject * compute_overlap (float bbx1, float bby1, float bbx2, float bby2,
 }
 
 PyObject * objective_function (PyObject * pyexamples) {
+#if 0
     int i;
     int j;
     int k;
@@ -117,7 +118,7 @@ PyObject * objective_function (PyObject * pyexamples) {
             PyObject * pydetection = PyTuple_GetItem(pyentry, 1);
         }
     }
-
+#endif
     return Py_BuildValue("i", 0);
 }
 
