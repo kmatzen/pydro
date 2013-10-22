@@ -15,6 +15,7 @@ def ShowDetections(trees, image):
         [255, 255, 0],
         [255, 0, 0],
     ])
+    colors.flags.writeable = False
 
     for tree in trees:
         q = Queue.Queue()

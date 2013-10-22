@@ -34,8 +34,8 @@ def filter_model_test():
 
     correct = scipy.io.loadmat('tests/scores.mat')
 
-    for i in xrange(len(filtered_model.filtered_start.score)):
-        mine = filtered_model.filtered_start.score[i].score
+    for i in xrange(len(filtered_model.start.score)):
+        mine = filtered_model.start.score[i].score
         given = correct['score'][0,i]
 
         if not isinstance(mine, numpy.ndarray):
@@ -53,8 +53,8 @@ def filter_model_test():
         diff = diff[numpy.logical_not(numpy.isnan(diff))]
 
         if diff.size > 0:
-            print(filtered_model.filtered_start.score[i].scale, numpy.fabs(diff).max())
-            if filtered_model.filtered_start.score[i].scale > 1:
+            print(filtered_model.start.score[i].scale, numpy.fabs(diff).max())
+            if filtered_model.start.score[i].scale > 1:
                 assert numpy.fabs(diff).max() < 2e-1
             else:
                 assert numpy.fabs(diff).max() < 2e-1
@@ -72,35 +72,35 @@ def filter_model_small_test():
 
     correct = scipy.io.loadmat('tests/scored.mat')
 
-    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score)):
-        mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score[i].score
+    for i in xrange(len(filtered_model.start.rules[0].rhs[0].rules[0].rhs[0].score)):
+        mine = filtered_model.start.rules[0].rhs[0].rules[0].rhs[0].score[i].score
         given = correct['model_scored'][0,0][5][0,1][2][0,i]
 
-        if filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].filtered_rhs[0].score[i].scale > 1:
+        if filtered_model.start.rules[0].rhs[0].rules[0].rhs[0].score[i].scale > 1:
             assert numpy.fabs(given - mine).max() < 1e-1
         else:
             assert numpy.fabs(given - mine).max() < 1e-2
 
-    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score)):
-        mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].score
+    for i in xrange(len(filtered_model.start.rules[0].rhs[0].rules[0].score)):
+        mine = filtered_model.start.rules[0].rhs[0].rules[0].score[i].score
         given = correct['model_scored'][0,0][4][0,2][0,0][10][0,i]
 
-        if filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].filtered_rules[0].score[i].scale > 1:
+        if filtered_model.start.rules[0].rhs[0].rules[0].score[i].scale > 1:
             assert numpy.fabs(given - mine).max() < 1e-1
         else:
             assert numpy.fabs(given - mine).max() < 1e-2
 
-    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score)):
-        mine = filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score[i].score
+    for i in xrange(len(filtered_model.start.rules[0].rhs[0].score)):
+        mine = filtered_model.start.rules[0].rhs[0].score[i].score
         given = correct['model_scored'][0,0][5][0,2][2][0,i]
 
-        if filtered_model.filtered_start.filtered_rules[0].filtered_rhs[0].score[i].scale > 1:
+        if filtered_model.start.rules[0].rhs[0].score[i].scale > 1:
             assert numpy.fabs(given - mine).max() < 1e-1
         else:
             assert numpy.fabs(given - mine).max() < 1e-2
 
-    for i in xrange(len(filtered_model.filtered_start.filtered_rules[0].score)):
-        mine = filtered_model.filtered_start.filtered_rules[0].score[i].score
+    for i in xrange(len(filtered_model.start.rules[0].score)):
+        mine = filtered_model.start.rules[0].score[i].score
         given = correct['model_scored'][0,0][4][0,0][0,0][10][0,i]
 
         if not isinstance(mine, numpy.ndarray):
@@ -119,13 +119,13 @@ def filter_model_small_test():
 
         if diff.size > 0:
             print(numpy.fabs(diff).max())
-            if filtered_model.filtered_start.filtered_rules[0].score[i].scale > 1:
+            if filtered_model.start.rules[0].score[i].scale > 1:
                 assert numpy.fabs(diff).max() < 1e-1
             else:
                 assert numpy.fabs(diff).max() < 2e-2
 
-    for i in xrange(len(filtered_model.filtered_start.score)):
-        mine = filtered_model.filtered_start.score[i].score
+    for i in xrange(len(filtered_model.start.score)):
+        mine = filtered_model.start.score[i].score
         given = correct['model_scored'][0,0][5][0,0][2][0,i]
 
         if not isinstance(mine, numpy.ndarray):
@@ -144,7 +144,7 @@ def filter_model_small_test():
 
         if diff.size > 0:
             print(numpy.fabs(diff).max())
-            if filtered_model.filtered_start.score[i].scale > 1:
+            if filtered_model.start.score[i].scale > 1:
                 assert numpy.fabs(diff).max() < 1e-1
             else:
                 assert numpy.fabs(diff).max() < 2e-2

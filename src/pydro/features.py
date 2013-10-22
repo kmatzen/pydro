@@ -23,6 +23,7 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
     if len(image.shape) == 2:
         image = numpy.dstack((image, image, image))
     image = image.astype(numpy.float32)
+    image.flags.writeable = False
 
     sc = 2 ** (1.0 / interval)
     max_scale = 1 + \

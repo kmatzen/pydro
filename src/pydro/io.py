@@ -42,7 +42,9 @@ def _type_unpacker(obj):
             dtype = numpy.float32
         elif obj['type'] == 'i':
             dtype = numpy.int32
-        return numpy.fromstring(obj['data'], dtype=dtype).reshape(obj['shape'])
+        array = numpy.fromstring(obj['data'], dtype=dtype).reshape(obj['shape'])
+        array.flags.writeable = False
+        return array
     elif '__model__' in obj:
         return obj['__model__']
     elif '__filter__' in obj:

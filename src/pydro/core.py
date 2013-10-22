@@ -1,4 +1,4 @@
-from pydro.detection import FilterPyramid, DeformationCost
+from pydro.detection import FilterPyramid, DeformationCost, Score
 
 import itertools
 import numpy
@@ -23,10 +23,8 @@ __all__ = [
     'FilteredDeformationRule',
     'TreeNode',
     'Leaf',
-    'Score',
 ]
 
-Score = namedtuple('Score', 'score,scale')
 TreeRoot = namedtuple('TreeRoot', 'x1,x2,y1,y2,s,child,loss,model')
 TreeNode = namedtuple('TreeNode', 'x,y,l,symbol,ds,s,children,rule,loss')
 Leaf = namedtuple('Leaf', 'x1,x2,y1,y2,scale,x,y,l,s,ds,symbol')
@@ -59,20 +57,36 @@ class Model(object):
 class FilteredModel (Model):
 
     def __init__(self, model, pyramid, loss_adjustment):
-        super(FilteredModel, self).__init__(**model.__dict__)
+        super(FilteredModel, self).__init__(
+            clss=model.clss,
+            year=model.year,
+            note=model.note,
+            start=model.start,
+            maxsize=model.maxsize,
+            minsize=model.minsize,
+            interval=model.interval,
+            sbin=model.sbin,
+            thresh=model.thresh,
+            type=model.type,
+            features=model.features,
+            stats=model.stats,
+        )
 
-        self.filtered_size = self.start.GetFilteredSize(pyramid)
+        self.size = self.start.GetFilteredSize(pyramid)
         self.loss_adjustment = loss_adjustment
         self.pyramid = pyramid
 
-        self.filtered_start = self.start.Filter(self)
+        self.start = model.start.Filter(self)
+
+    def Filter (self, loss_adjustment=None):
+        return FilteredModel (self, self.pyramid, self.loss_adjustment)
 
     def Parse(self, threshold):
         X = numpy.array([], dtype=numpy.uint32)
         Y = numpy.array([], dtype=numpy.uint32)
         L = numpy.array([], dtype=numpy.uint32)
         S = numpy.array([], dtype=numpy.float32)
-        for pos, level in enumerate(self.filtered_start.score):
+        for pos, level in enumerate(self.start.score):
             if isinstance(level.score, numpy.ndarray):
                 Yi, Xi = numpy.where(level.score > threshold)
                 Si = level.score[Yi, Xi].flatten()
@@ -90,6 +104,10 @@ class FilteredModel (Model):
         Y = Y[order]
         L = L[order]
         S = S[order]
+        X.flags.writeable = False
+        Y.flags.writeable = False
+        L.flags.writeable = False
+        S.flags.writeable = False
 
         detections = []
 
@@ -97,10 +115,10 @@ class FilteredModel (Model):
         assert len(X) == len(L)
         assert len(X) == len(S)
         for x, y, l, s in itertools.izip(X, Y, L, S):
-            parsed = self.filtered_start.Parse(x=x, y=y, l=l, s=s, ds=0, model=self)
+            parsed = self.start.Parse(x=x, y=y, l=l, s=s, ds=0, model=self)
             detwindow = parsed.rule.detwindow
             shiftwindow = parsed.rule.shiftwindow
-            scale = self.pyramid.sbin / self.filtered_start.score[parsed.l].scale
+            scale = self.pyramid.sbin / self.start.score[parsed.l].scale
 
             x1 = (parsed.x-shiftwindow[1]-self.pyramid.padx*(1<<parsed.ds))*scale
             y1 = (parsed.y-shiftwindow[0]-self.pyramid.pady*(1<<parsed.ds))*scale
@@ -129,6 +147,7 @@ class Filter(object):
         29, 30, 27, 28,
         31,
     ])
+    _p.flags.writeable = False
 
     def __init__(self, blocklabel, size, flip, symbol):
         self.blocklabel = blocklabel
@@ -266,18 +285,26 @@ class FilteredDeformationRule(DeformationRule):
 
     def __init__(self, deformation_rule, model):
         super(FilteredDeformationRule, self).__init__(
-            **deformation_rule.__dict__
+            type=deformation_rule.type,
+            lhs=deformation_rule.lhs,
+            rhs=deformation_rule.rhs,
+            detwindow=deformation_rule.detwindow,
+            shiftwindow=deformation_rule.shiftwindow,
+            i=deformation_rule.i,
+            offset=deformation_rule.offset,
+            loc=deformation_rule.loc,
+            df=deformation_rule.df,
+            blocks=deformation_rule.blocks,
+            metadata=deformation_rule.metadata,
         )
 
-        self.filtered_rhs = [
-            s.Filter(model) for s in self.rhs
-        ]
+        self.rhs = [s.Filter(model) for s in deformation_rule.rhs]
 
         def_w = self.df.GetParameters()
 
-        assert len(self.filtered_rhs) == 1
+        assert len(self.rhs) == 1
 
-        score = self.filtered_rhs[0].score
+        score = self.rhs[0].score
 
         bias = self.offset.GetParameters()
         loc_w = self.loc.GetParameters()
@@ -286,6 +313,7 @@ class FilteredDeformationRule(DeformationRule):
         loc_f[0, 0:model.pyramid.interval] = 1
         loc_f[1, model.pyramid.interval:2 * model.pyramid.interval] = 1
         loc_f[2, 2 * model.pyramid.interval:] = 1
+        loc_f.flags.writeable = False
 
         loc_scores = loc_w.dot(loc_f)
 
@@ -323,7 +351,7 @@ class FilteredDeformationRule(DeformationRule):
         rhs_x = rhs_nvp_x + model.pyramid.padx * ((1 << ds) - 1)
         rhs_y = rhs_nvp_y + model.pyramid.pady * ((1 << ds) - 1)
 
-        symbol, = self.filtered_rhs
+        symbol, = self.rhs
 
         nvp_x = rhs_x - model.pyramid.padx * ((1 << ds) - 1)
         nvp_y = rhs_y - model.pyramid.pady * ((1 << ds) - 1)
@@ -359,11 +387,20 @@ class FilteredStructuralRule(StructuralRule):
 
     def __init__(self, structural_rule, model):
         super(FilteredStructuralRule, self).__init__(
-            **structural_rule.__dict__)
+            type=structural_rule.type,
+            lhs=structural_rule.lhs,
+            rhs=structural_rule.rhs,
+            detwindow=structural_rule.detwindow,
+            shiftwindow=structural_rule.shiftwindow,
+            i=structural_rule.i,
+            anchor=structural_rule.anchor,
+            offset=structural_rule.offset,
+            loc=structural_rule.loc,
+            blocks=structural_rule.blocks,
+            metadata=structural_rule.metadata,
+        )
 
-        self.filtered_rhs = [
-            s.Filter(model) for s in self.rhs
-        ]
+        self.rhs = [s.Filter(model) for s in structural_rule.rhs]
 
         bias = self.offset.GetParameters() * model.features.bias
         loc_w = self.loc.GetParameters()
@@ -372,18 +409,19 @@ class FilteredStructuralRule(StructuralRule):
         loc_f[0, 0:model.pyramid.interval] = 1
         loc_f[1, model.pyramid.interval:2 * model.pyramid.interval] = 1
         loc_f[2, 2 * model.pyramid.interval:] = 1
+        loc_f.flags.writeable = False
 
         loc_scores = loc_w.dot(loc_f).flatten()
 
-        assert len(model.filtered_size) == len(loc_scores.flatten())
+        assert len(model.size) == len(loc_scores.flatten())
         self.score = [
             float(bias + loc_score) * numpy.ones(size, dtype=numpy.float32)
             for size, loc_score
-            in itertools.izip(model.filtered_size, loc_scores.flatten())
+            in itertools.izip(model.size, loc_scores.flatten())
         ]
 
-        assert len(self.anchor) == len(self.filtered_rhs)
-        for anchor, filtered_symbol in itertools.izip(self.anchor, self.filtered_rhs):
+        assert len(self.anchor) == len(self.rhs)
+        for anchor, symbol in itertools.izip(self.anchor, self.rhs):
             ax, ay, ds = anchor
 
             step = 2 ** ds
@@ -394,7 +432,7 @@ class FilteredStructuralRule(StructuralRule):
             startx = ax - virtpadx + 1
             starty = ay - virtpady + 1
 
-            score = [s.score for s in filtered_symbol.score]
+            score = [s.score for s in symbol.score]
 
             for i in xrange(len(score)):
                 level = i - model.pyramid.interval * ds
@@ -433,6 +471,9 @@ class FilteredStructuralRule(StructuralRule):
                 else:
                     self.score[i][:] = -numpy.inf
 
+        for s in self.score:
+            s.flags.writeable = False
+
         assert len(model.pyramid.levels) == len(self.score)
         self.score = [
             Score(scale=l.scale, score=s)
@@ -446,9 +487,9 @@ class FilteredStructuralRule(StructuralRule):
 
 
     def Parse(self, x, y, l, s, ds, model):
-        assert len(self.anchor) == len(self.filtered_rhs)
+        assert len(self.anchor) == len(self.rhs)
         children = []
-        for anchor, symbol in itertools.izip(self.anchor, self.filtered_rhs):
+        for anchor, symbol in itertools.izip(self.anchor, self.rhs):
             ax, ay, ads = anchor
 
             rhs_x = x * (1 << ads) + ax
@@ -490,13 +531,9 @@ class Symbol(object):
     """
 
     def Filter(self, model):
-        if self.type == 'T' and isinstance(self, FilteredSymbol):
-            assert len(self.rules) == 0
-            return self
+        symbol = FilteredSymbol(self, model)
 
-        filtered_symbol = FilteredSymbol(self, model)
-
-        return filtered_symbol
+        return symbol
 
     def GetFeatures (self, model, node):
         assert self == node.symbol
@@ -545,34 +582,36 @@ class Symbol(object):
 class FilteredSymbol(Symbol):
 
     def __init__(self, symbol, model):
-        super(FilteredSymbol, self).__init__(**symbol.__dict__)
+        super(FilteredSymbol, self).__init__(
+            type=symbol.type,
+            filter=symbol.filter,
+            rules=symbol.rules,
+        )
 
         if self.filter is not None:
-            filter = self.filter.GetParameters()
-            self.filtered = FilterPyramid(model.pyramid, filter, model.filtered_size)
-            assert len(model.filtered_size) == len(self.filtered)
-            assert len(model.pyramid.levels) == len(self.filtered)
-            self.score = [
-                Score(scale=level.scale, score=filtered)
-                for level, filtered in itertools.izip(model.pyramid.levels, self.filtered)
-            ]
+            if isinstance(symbol, FilteredSymbol):
+                self.score = symbol.score
+            else:
+                filter = self.filter.GetParameters()
+                self.score = FilterPyramid(model.pyramid, filter, model.size)
 
-            self.filtered_rules = []
+            self.rules = []
         else:
-            self.filtered_rules = [
-                r.Filter(model) for r in self.rules
-            ]
+            self.rules = [r.Filter(model) for r in symbol.rules]
 
-            self.score = self.filtered_rules[0].score
-            for filtered_rule in self.filtered_rules[1:]:
+            self.score = self.rules[0].score
+            for rule in self.rules[1:]:
                 self.score = [Score(
                     scale=level.scale,
                     score=numpy.max(
                         numpy.dstack((level.score, f.score)), axis=2),
                 )
-                    for level, f in itertools.izip(self.score, filtered_rule.score)]
+                    for level, f in itertools.izip(self.score, rule.score)]
 
-        assert self.score is not None or self.filtered is not None
+        for s in self.score:
+            s.score.flags.writeable = False
+    
+        assert self.score is not None
 
     def Parse(self, x, y, l, s, ds, model):
         if self.type == 'T':
@@ -600,7 +639,7 @@ class FilteredSymbol(Symbol):
             return leaf
         else:
             selected_rule = None
-            for rule in self.filtered_rules:
+            for rule in self.rules:
                 nvp_y = y - model.pyramid.pady * ((1 << ds) - 1)
                 nvp_x = x - model.pyramid.padx * ((1 << ds) - 1)
 
@@ -635,7 +674,7 @@ class FilteredSymbol(Symbol):
 
     def __repr__(self):
         return '%s\t%s' % (self.type, '\n\t'.join(
-            str(type(r)) for r in self.filtered_rules
+            str(type(r)) for r in self.rules
         ))
 
 
@@ -690,6 +729,8 @@ class Def(object):
         if self.flip:
             df[1] *= -1
 
+        df.flags.writeable = False
+
         return { self.blocklabel : df }
 
     def GetBlocks (self):
@@ -712,6 +753,9 @@ class Loc(object):
             loc_f[1] = 1
         else:
             loc_f[2] = 1
+
+        loc_f.flags.writeable = False
+
         return { self.blocklabel : loc_f }
 
     def GetBlocks (self):
@@ -726,7 +770,10 @@ class Offset(object):
         self.blocklabel = blocklabel
 
     def GetFeatures (self, model, node):
-        return { self.blocklabel : numpy.array([model.features.bias]) }
+        bias = numpy.array([model.features.bias])
+        bias.flags.writeable = False
+
+        return { self.blocklabel : bias }
 
     def GetBlocks (self):
         return [self.blocklabel]
