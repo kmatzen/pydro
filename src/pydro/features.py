@@ -8,6 +8,7 @@ import sys
 Level = namedtuple('Level', 'features,scale')
 Pyramid = namedtuple('Pyramid', 'levels,image,pady,padx,sbin,interval')
 
+
 def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None, padx=None, pady=None):
     if sbin is None:
         sbin = model.sbin
@@ -40,17 +41,18 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
 
             if extra_octave:
                 yield Level(
-                    features=ComputeFeatures(scaled, sbin / 4, padx+1, pady+1),
+                    features=ComputeFeatures(
+                        scaled, sbin / 4, padx + 1, pady + 1),
                     scale=4 * scale,
                 )
 
             yield Level(
-                features=ComputeFeatures(scaled, sbin / 2, padx+1, pady+1),
+                features=ComputeFeatures(scaled, sbin / 2, padx + 1, pady + 1),
                 scale=2 * scale,
             )
 
             yield Level(
-                features=ComputeFeatures(scaled, sbin, padx+1, pady+1),
+                features=ComputeFeatures(scaled, sbin, padx + 1, pady + 1),
                 scale=scale,
             )
 
@@ -61,7 +63,7 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
                 scaled = ResizeImage(image, y, x)
 
                 yield Level(
-                    features=ComputeFeatures(scaled, sbin, padx+1, pady+1),
+                    features=ComputeFeatures(scaled, sbin, padx + 1, pady + 1),
                     scale=scale,
                 )
 
