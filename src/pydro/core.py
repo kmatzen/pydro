@@ -100,7 +100,7 @@ class FilteredModel (Model):
             parsed = self.filtered_start.Parse(x=x, y=y, l=l, s=s, ds=0, model=self)
             detwindow = parsed.rule.detwindow
             shiftwindow = parsed.rule.shiftwindow
-            scale = self.sbin / self.filtered_start.score[parsed.l].scale
+            scale = self.pyramid.sbin / self.filtered_start.score[parsed.l].scale
 
             x1 = (parsed.x-shiftwindow[1]-self.pyramid.padx*(1<<parsed.ds))*scale
             y1 = (parsed.y-shiftwindow[0]-self.pyramid.pady*(1<<parsed.ds))*scale
@@ -283,9 +283,9 @@ class FilteredDeformationRule(DeformationRule):
         loc_w = self.loc.GetParameters()
 
         loc_f = numpy.zeros((3, len(model.pyramid.levels)), dtype=numpy.float32)
-        loc_f[0, 0:model.interval] = 1
-        loc_f[1, model.interval:2 * model.interval] = 1
-        loc_f[2, 2 * model.interval:] = 1
+        loc_f[0, 0:model.pyramid.interval] = 1
+        loc_f[1, model.pyramid.interval:2 * model.pyramid.interval] = 1
+        loc_f[2, 2 * model.pyramid.interval:] = 1
 
         loc_scores = loc_w.dot(loc_f)
 
@@ -369,9 +369,9 @@ class FilteredStructuralRule(StructuralRule):
         loc_w = self.loc.GetParameters()
 
         loc_f = numpy.zeros((3, len(model.pyramid.levels)))
-        loc_f[0, 0:model.interval] = 1
-        loc_f[1, model.interval:2 * model.interval] = 1
-        loc_f[2, 2 * model.interval:] = 1
+        loc_f[0, 0:model.pyramid.interval] = 1
+        loc_f[1, model.pyramid.interval:2 * model.pyramid.interval] = 1
+        loc_f[2, 2 * model.pyramid.interval:] = 1
 
         loc_scores = loc_w.dot(loc_f).flatten()
 
@@ -397,7 +397,7 @@ class FilteredStructuralRule(StructuralRule):
             score = [s.score for s in filtered_symbol.score]
 
             for i in xrange(len(score)):
-                level = i - model.interval * ds
+                level = i - model.pyramid.interval * ds
 
                 if level >= 0:
                     endy = min(
@@ -453,7 +453,7 @@ class FilteredStructuralRule(StructuralRule):
 
             rhs_x = x * (1 << ads) + ax
             rhs_y = y * (1 << ads) + ay
-            rhs_l = l - model.interval * ads
+            rhs_l = l - model.pyramid.interval * ads
 
             rhs_ds = ds + ads
 
@@ -576,7 +576,7 @@ class FilteredSymbol(Symbol):
 
     def Parse(self, x, y, l, s, ds, model):
         if self.type == 'T':
-            scale = model.sbin / self.score[l].scale
+            scale = model.pyramid.sbin / self.score[l].scale
 
             x1 = (x - model.pyramid.padx * (1 << ds)) * scale
             y1 = (y - model.pyramid.pady * (1 << ds)) * scale
@@ -706,9 +706,9 @@ class Loc(object):
 
     def GetFeatures (self, model, node):
         loc_f = numpy.zeros((3,))
-        if node.l < model.interval:
+        if node.l < model.pyramid.interval:
             loc_f[0] = 1
-        elif node.l < 2*model.interval:
+        elif node.l < 2*model.pyramid.interval:
             loc_f[1] = 1
         else:
             loc_f[2] = 1

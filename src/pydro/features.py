@@ -6,7 +6,7 @@ from collections import namedtuple
 import sys
 
 Level = namedtuple('Level', 'features,scale')
-Pyramid = namedtuple('Pyramid', 'levels,image,pady,padx')
+Pyramid = namedtuple('Pyramid', 'levels,image,pady,padx,sbin,interval')
 
 def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None, padx=None, pady=None):
     if sbin is None:
@@ -71,6 +71,8 @@ def BuildPyramid(image, model=None, sbin=None, interval=None, extra_octave=None,
         levels=levels,
         pady=pady,
         padx=padx,
+        sbin=sbin,
+        interval=interval,
         image=image,
     )
 
