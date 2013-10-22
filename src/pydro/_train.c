@@ -65,11 +65,63 @@ PyObject * compute_overlap (float bbx1, float bby1, float bbx2, float bby2,
     return PyArray_Return (pyoverlap);
 }
 
-PyObject * objective_function (PyListObject * examples) {
+PyObject * objective_function (PyObject * pyexamples) {
+    int i;
+    int j;
+    int k;
+
+    for (i = 0; i < PyList_Size(pyexamples); ++i) {
+        PyObject * pyexample = PyList_GetItem (pyexamples, i);
+        if (!PyList_Check(pyexample)) {
+            PyErr_SetString(PyExc_TypeError, "example list elements must be list.");
+            return NULL;
+        }
+
+        for (j = 0; j < PyList_Size(pyexample); ++j) {
+
+            PyObject * pyentry = PyList_GetItem(pyexample, j);
+            if (!PyTuple_Check(pyentry)) {
+                PyErr_SetString(PyExc_TypeError, "entries must be tuples.");
+                return NULL;
+            }
+
+            if (PyTuple_Size(pyentry) != 2) {
+                PyErr_SetString(PyExc_TypeError, "entry tuples must be of size 2");
+                return NULL;
+            }
+
+            PyObject * pyfeatures = PyTuple_GetItem(pyentry, 0);
+            if (!PyDict_Check(pyfeatures)) {
+                PyError_SetString(PyExc_TypeError, "features must be a dict");
+                return NULL;
+            }
+
+            PyObject * pyfeatureslist = PyDict_Items(pyfeatures);
+
+            float score = 0;
+            for (k = 0; k < PyDict_Size(pyfeatureslist); ++k) {
+                PyObject * pyfeature = PyList_GetItem(pyfeatureslist, k);
+                PyObject * pyblock = PyTuple_GetItem(pyfeature, 0);
+
+                PyObject * pyw = PyTuple_GetItem(pyfeature, 1);
+                if (!PyArray_Check(pyw)) {
+                    PyError_SetString(PyExc_TypeError, "w must be a numpy array");
+                    return NULL;
+                }
+
+                PyArrayObject * pywarray = (PyArrayObject*)pyw;
+
+                
+            }
+
+            PyObject * pydetection = PyTuple_GetItem(pyentry, 1);
+        }
+    }
+
     return Py_BuildValue("i", 0);
 }
 
-PyObject * gradient (PyListObject * examples, PyDictObject * gradients) {
+PyObject * gradient (PyObject * examples, PyObject * gradients) {
     Py_RETURN_NONE;
 }
 
@@ -86,7 +138,7 @@ static PyObject * ComputeOverlap(PyObject * self, PyObject * args)
 }
 
 static PyObject * ObjectiveFunction (PyObject * self, PyObject * args) {
-    PyListObject * pyexamples;
+    PyObject * pyexamples;
     if (!PyArg_ParseTuple (args, "O!", &PyList_Type, &pyexamples)) {
         return NULL;
     }
@@ -95,8 +147,8 @@ static PyObject * ObjectiveFunction (PyObject * self, PyObject * args) {
 }
 
 static PyObject * Gradient (PyObject * self, PyObject * args) {
-    PyListObject * pyexamples;
-    PyDictObject * pygradients;
+    PyObject * pyexamples;
+    PyObject * pygradients;
     if (!PyArg_ParseTuple (args, "O!O!", &PyList_Type, &pyexamples, &PyDict_Type, &pygradients)) {
         return NULL;
     }
