@@ -49,13 +49,8 @@ def neg_latent_test():
 
     for entry in example:
         new_score = ScoreVector(entry)
-        if entry.detection is not None:
-            print(entry.detection.s, entry.loss)
-            assert math.fabs(entry.detection.s - new_score) < 1e-4
-        else:
-            print(0, entry.loss)
-            assert math.fabs(new_score) < 1e-4
-
+        print(entry.score, entry.loss)
+        assert math.fabs(entry.score - new_score) < 1e-4
 
 def pos_latent_test():
     model = LoadModel('tests/example.dpm')
@@ -76,13 +71,8 @@ def pos_latent_test():
 
     for entry in example:
         new_score = ScoreVector(entry)
-        if entry.detection is not None:
-            print(entry.detection.s, entry.loss)
-            assert math.fabs(entry.detection.s - new_score) < 1e-4
-        else:
-            print(0, entry.loss)
-            assert math.fabs(new_score) < 1e-4
-
+        print(entry.score, entry.loss)
+        assert math.fabs(entry.score - new_score) < 1e-4
 
 def overlap_loss_test():
     interval_fg = 5
@@ -108,13 +98,8 @@ def overlap_loss_test():
 
     for entry in example:
         new_score = ScoreVector(entry)
-        if entry.detection is not None:
-            print(entry.detection.s, entry.loss)
-            assert math.fabs(entry.detection.s - new_score) < 1e-4
-        else:
-            print(0, entry.loss)
-            assert math.fabs(new_score) < 1e-4
-
+        print(entry.score, entry.loss)
+        assert math.fabs(entry.score - new_score) < 1e-4
 
 def optimize_test():
     interval_fg = 5
@@ -128,7 +113,7 @@ def optimize_test():
 
     bbox = BBox(x1=detection.x1, y1=detection.y1, x2=detection.x2, y2=detection.y2)
 
-    pyramid = BuildPyramid (image, model=model)#, interval=interval_fg)
+    pyramid = BuildPyramid (image, model=model, interval=interval_fg)
 
     loss_adjustment = OverlapLossAdjustment(model, pyramid, 0.5, 1, model.start.rules, bbox)
     belief_adjustment = OverlapLossAdjustment(model, pyramid, 0.7, -numpy.inf, model.start.rules, bbox)
@@ -139,11 +124,7 @@ def optimize_test():
 
     for entry in example:
         new_score = ScoreVector(entry)
-        if entry.detection is not None:
-            print(entry.detection.s, entry.loss)
-            assert math.fabs(entry.detection.s - new_score) < 1e-4
-        else:
-            print(0, entry.loss)
-            assert math.fabs(new_score) < 1e-4
+        print(entry.score, entry.loss)
+        assert math.fabs(entry.score - new_score) < 1e-4
 
     Optimize (model, [example])

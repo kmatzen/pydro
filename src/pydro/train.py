@@ -20,7 +20,7 @@ __all__ = [
 ]
 
 BBox = namedtuple('BBox', 'x1,y1,x2,y2')
-TrainingExample = namedtuple('TrainingExample', 'features,belief,loss,detection')
+TrainingExample = namedtuple('TrainingExample', 'features,belief,loss,score')
 
 def BuildFeatureVector (detection, belief, positive):
     features = detection.child.symbol.GetFeatures (detection.model, detection.child)
@@ -28,7 +28,7 @@ def BuildFeatureVector (detection, belief, positive):
         features=features,
         belief=belief,
         loss=detection.loss if positive else 1.0,
-        detection=detection,
+        score=detection.s,
     )
     return training_example
 
@@ -47,7 +47,7 @@ def PositiveLatentFeatures (model, pyramid, belief_adjustment, loss_adjustment, 
         features={},
         belief=False,
         loss=1.0,
-        detection=None,
+        score=0.0,
     )]
     
     filtered_model_loss = model.Filter (pyramid, loss_adjustment)
@@ -63,7 +63,7 @@ def NegativeLatentFeatures (model, pyramid, M):
         features={},
         belief=True,
         loss=0.0,
-        detection=None,
+        score=0.0,
     )]
 
     return loss + negative_dummy

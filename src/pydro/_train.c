@@ -92,7 +92,7 @@ PyObject * objective_function (PyObject * pyexamples) {
 
             PyObject * pyfeatures = PyTuple_GetItem(pyentry, 0);
             if (!PyDict_Check(pyfeatures)) {
-                PyError_SetString(PyExc_TypeError, "features must be a dict");
+                PyErr_SetString(PyExc_TypeError, "features must be a dict");
                 return NULL;
             }
 
@@ -105,7 +105,7 @@ PyObject * objective_function (PyObject * pyexamples) {
 
                 PyObject * pyw = PyTuple_GetItem(pyfeature, 1);
                 if (!PyArray_Check(pyw)) {
-                    PyError_SetString(PyExc_TypeError, "w must be a numpy array");
+                    PyErr_SetString(PyExc_TypeError, "w must be a numpy array");
                     return NULL;
                 }
 
