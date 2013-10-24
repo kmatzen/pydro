@@ -175,7 +175,7 @@ static struct PyModuleDef moduledef = {
 
 #if PY_MAJOR_VERSION < 3
 static PyMethodDef _train_methods[] = {
-    {"ComputeOverlap", ComputeOverlap, METH_VARARGS, "Compute detection overlaps with bbox."},
+    {"compute_overlap", ComputeOverlap, METH_VARARGS, "Compute detection overlaps with bbox."},
 #if 0
     {"ObjectiveFunction", ObjectiveFunction, METH_VARARGS, "WL-SSVM objective function."},
     {"Gradient", Gradient, METH_VARARGS, "WL-SSVM gradient."},
