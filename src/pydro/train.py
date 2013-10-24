@@ -1,5 +1,7 @@
+"""Routines for training DPM."""
+
 from pydro.core import Score
-from pydro._train import *
+from pydro._train import compute_overlap
 
 import numpy
 import itertools
@@ -8,24 +10,28 @@ import scipy.misc
 import scipy.optimize
 
 __all__ = [
-    'BuildFeatureVector',
-    'PositiveLatentFeatures',
-    'NegativeLatentFeatures',
-    'ComputeOverlap',
-    'BBox',
-    'OverlapLossAdjustment',
-    'Optimize',
-    'ScoreVector',
+    'build_feature_vector',
+    'get_positive_latent_features',
+    'get_negative_latent_features',
+    'compute_overlap',
+    '__BBox__',
+    'overlap_loss_adjustment',
+    'optimize',
+    'score_vector',
 ]
 
-BBox = namedtuple('BBox', 'x1,y1,x2,y2')
-TrainingExample = namedtuple('TrainingExample', 'features,belief,loss,score')
+__BBox__ = namedtuple('__BBox__', 'x1,y1,x2,y2')
+__TrainingExample__ = namedtuple(
+    '__TrainingExample__', 'features,belief,loss,score')
 
 
-def BuildFeatureVector(detection, belief, positive):
+def build_feature_vector(detection, belief, positive):
+    """Takes a detection parse tree, extras relevant features,
+       and constructs training example."""
+
     features = detection.child.symbol.GetFeatures(
         detection.model, detection.child)
-    training_example = TrainingExample(
+    training_example = __TrainingExample__(
         features=features,
         belief=belief,
         loss=detection.loss if positive else 1.0,
@@ -34,7 +40,9 @@ def BuildFeatureVector(detection, belief, positive):
     return training_example
 
 
-def ScoreVector(entry):
+def score_vector(entry):
+    """Computes score for training example."""
+
     score = 0.0
     for block in entry.features:
         score += entry.features[block].flatten().T.dot(block.w.flatten())
@@ -42,13 +50,18 @@ def ScoreVector(entry):
     return score
 
 
-def PositiveLatentFeatures(model, pyramid, belief_adjustment, loss_adjustment, M):
+def get_positive_latent_features(model, pyramid, belief_adjustment,
+                                 loss_adjustment, num_loss):
+    """Computes belief and num_loss loss adjusted detections for a
+       positive training instance."""
+
     filtered_model_belief = model.Filter(
         pyramid, loss_adjustment=belief_adjustment)
-    belief = [BuildFeatureVector(d, belief=True, positive=True)
-              for i, d in itertools.izip(xrange(1), filtered_model_belief.Parse(-1))]
+    belief = [build_feature_vector(d, belief=True, positive=True)
+              for d in itertools.islice(filtered_model_belief.Parse(-1), 1)
+              ]
 
-    positive_dummy = [TrainingExample(
+    positive_dummy = [__TrainingExample__(
         features={},
         belief=False,
         loss=1.0,
@@ -57,18 +70,23 @@ def PositiveLatentFeatures(model, pyramid, belief_adjustment, loss_adjustment, M
 
     filtered_model_loss = filtered_model_belief.Filter(
         loss_adjustment=loss_adjustment)
-    loss = [BuildFeatureVector(d, belief=False, positive=True)
-            for i, d in itertools.izip(xrange(M), filtered_model_loss.Parse(-1))]
+    loss = [build_feature_vector(d, belief=False, positive=True)
+            for d in itertools.islice(filtered_model_loss.Parse(-1), num_loss)
+            ]
 
     return belief + positive_dummy + loss
 
 
-def NegativeLatentFeatures(model, pyramid, M):
-    filtered_model = model.Filter(pyramid)
-    loss = [BuildFeatureVector(d, belief=False, positive=False)
-            for i, d in itertools.izip(xrange(M), filtered_model.Parse(-1))]
+def get_negative_latent_features(model, pyramid, num_examples):
+    """Mines image for num_examples false positive training examples."""
 
-    negative_dummy = [TrainingExample(
+    filtered_model = model.Filter(pyramid)
+    loss = [
+        build_feature_vector(d, belief=False, positive=False)
+        for d in itertools.islice(filtered_model.Parse(-1), num_examples)
+    ]
+
+    negative_dummy = [__TrainingExample__(
         features={},
         belief=True,
         loss=0.0,
@@ -78,114 +96,123 @@ def NegativeLatentFeatures(model, pyramid, M):
     return loss + negative_dummy
 
 
-def OverlapLossAdjustment(model, pyramid, threshold, value, rules, bbox):
+def overlap_loss_adjustment(model, pyramid, threshold, value, rules, bbox):
+    """Creates a loss adjustment function that considers bbox overlap."""
+
     def _overlap_loss_adjustment(rule, score):
+        """A loss adjustment function that considers bbox overlap."""
+
         if rule not in rules:
             return score
 
         adjusted_score = []
         for level in score:
             scale = model.sbin / level.scale
-            overlap = ComputeOverlap(bbox.x1, bbox.y1, bbox.x2, bbox.y2,
-                                     rule.detwindow[0], rule.detwindow[
-                                         1], level.score.shape[
-                                         0], level.score.shape[1],
-                                     scale, pyramid.pady +
-                                     rule.shiftwindow[
-                                         0], pyramid.padx + rule.shiftwindow[
-                                         1],
-                                     pyramid.image.shape[0], pyramid.image.shape[1])
+            overlap = compute_overlap(
+                bbox.x1, bbox.y1, bbox.x2, bbox.y2,
+                rule.detwindow[0], rule.detwindow[1],
+                level.score.shape[0], level.score.shape[1],
+                scale,
+                pyramid.pady + rule.shiftwindow[0],
+                pyramid.padx + rule.shiftwindow[1],
+                pyramid.image.shape[0], pyramid.image.shape[1]
+            )
+
             loss = numpy.zeros(overlap.shape)
             loss[overlap < threshold] = value
             loss.flags.writeable = False
             adjusted_score += [
                 Score(scale=level.scale, score=level.score + loss)]
-            for s in adjusted_score:
-                s.score.flags.writeable = False
+            for level in adjusted_score:
+                level.score.flags.writeable = False
 
         return adjusted_score
 
     return _overlap_loss_adjustment
 
 
-def Optimize(model, examples, C):
+def optimize(model, examples, svm_c):
+    """Reoptimizes model given training examples."""
+
     blocks = model.GetBlocks()
-    nParams = 0
+    num_parms = 0
     block_sections = {}
 
     for block in blocks:
         block.w.flags.writeable = True
-        end = nParams + block.w.size
-        block_sections[block] = (nParams, end)
-        nParams = end
+        end = num_parms + block.w.size
+        block_sections[block] = (num_parms, end)
+        num_parms = end
 
-    x0 = numpy.zeros((nParams,))
+    initial_solution = numpy.zeros((num_parms,))
     for block in blocks:
         start, end = block_sections[block]
-        x0[start:end] = block.w.flatten()
+        initial_solution[start:end] = block.w.flatten()
 
-    def _objective_function(x, *args):
-        g_packed = {block: numpy.zeros((block.w.size,)) for block in blocks}
+    def _objective_function(solution):
+        """Objective function for training."""
+
+        gradient_packed = {block: numpy.zeros((block.w.size,))
+                           for block in blocks}
         for block in blocks:
             start, end = block_sections[block]
-            block.w[:] = x[start:end].reshape(block.w.shape)
+            block.w[:] = solution[start:end].reshape(block.w.shape)
 
-        f = 0
+        objective_value = 0
         for example in examples:
-            V = -numpy.inf
+            loss_adjusted_score = -numpy.inf
             max_nonbelief_score = -numpy.inf
-            I = None
-            belief_I = None
+            max_entry = None
+            belief_entry = None
 
             for entry in example:
-                score = ScoreVector(entry)
+                score = score_vector(entry)
 
                 loss_adjusted = score + entry.loss
 
                 if entry.belief:
                     belief_score = score
-                    belief_I = entry
+                    belief_entry = entry
                 elif loss_adjusted > max_nonbelief_score:
                     max_nonbelief_score = loss_adjusted
 
-                if loss_adjusted > V:
-                    I = entry
-                    V = loss_adjusted
+                if loss_adjusted > loss_adjusted_score:
+                    max_entry = entry
+                    loss_adjusted_score = loss_adjusted
 
-            assert I is not None
-            assert belief_I is not None
+            assert max_entry is not None
+            assert belief_entry is not None
 
-            f += C * (V - belief_score)
+            objective_value += svm_c * (loss_adjusted_score - belief_score)
 
-            if I != belief_I:
-                for block in I.features:
-                    g_packed[block] += C * I.features[block].flatten()
+            if max_entry != belief_entry:
+                for block in max_entry.features:
+                    gradient_packed[block] += svm_c * \
+                        max_entry.features[block].flatten()
 
-                for block in belief_I.features:
-                    g_packed[block] -= C * belief_I.features[block].flatten()
+                for block in belief_entry.features:
+                    gradient_packed[block] -= svm_c * \
+                        belief_entry.features[block].flatten()
 
         for block in blocks:
-            f += 0.5 * block.reg_mult * \
+            objective_value += 0.5 * block.reg_mult * \
                 block.w.flatten().T.dot(block.w.flatten())
-            g_packed[block] += block.reg_mult * block.w.flatten()
+            gradient_packed[block] += block.reg_mult * block.w.flatten()
 
         #f = ObjectiveFunction (examples)
 
-        g = numpy.zeros(x.shape)
-        #Gradient (examples, g_packed)
+        gradient = numpy.zeros(solution.shape)
+        #Gradient (examples, gradient_packed)
         for block in blocks:
             start, end = block_sections[block]
-            g[start:end] = g_packed[block]
+            gradient[start:end] = gradient_packed[block]
 
-        print(f)
+        return objective_value, gradient
 
-        return f, g
-
-    x, f, d = scipy.optimize.fmin_l_bfgs_b(_objective_function, x0)
+    solution, _, _ = scipy.optimize.fmin_l_bfgs_b(
+        _objective_function, initial_solution)
 
     for block in blocks:
         start, end = block_sections[block]
-        block.w[:] = x[start:end].reshape(block.w.shape)
+        block.w[:] = solution[start:end].reshape(block.w.shape)
         block.w.flags.writeable = False
-
-    print(d)
