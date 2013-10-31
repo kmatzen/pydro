@@ -62,7 +62,7 @@ PyObject * compute_overlap (float bbx1, float bby1, float bbx2, float bby2,
         }
     }
 
-    return PyArray_Return (pyoverlap);
+    return Py_BuildValue("N", pyoverlap);
 }
 
 #if 0

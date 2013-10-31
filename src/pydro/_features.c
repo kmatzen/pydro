@@ -268,7 +268,7 @@ PyObject *process(PyArrayObject *pyimage, const int sbin, const int pad_x, const
 
   free(hist);
   free(norm);
-  return PyArray_Return(pyfeat);
+  return Py_BuildValue("N", pyfeat);
 }
 
 /*
@@ -383,7 +383,7 @@ PyObject *resize_image(PyArrayObject * pyimage, int y, int x) {
 
   free(tmp);
 
-  return PyArray_Return(pyresized);
+  return Py_BuildValue("N", pyresized);
 }
 
 
