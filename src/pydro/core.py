@@ -187,7 +187,7 @@ class Filter(object):
 class Rule(object):
 
     def __init__(self, type, lhs, rhs, detwindow, shiftwindow, i,
-                 offset, loc, blocks, metadata={}):
+                 offset, loc, blocks, metadata):
         self.type = type
         if isinstance(lhs, Symbol):
             self.lhs = weakref.ref(lhs)
@@ -257,7 +257,7 @@ class Rule(object):
 class DeformationRule(Rule):
 
     def __init__(self, type, lhs, rhs, detwindow, shiftwindow, i,
-                 offset, df, loc, blocks, metadata={}):
+                 offset, df, loc, blocks, metadata):
         super(DeformationRule, self).__init__(
             type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks, metadata
         )
@@ -377,7 +377,7 @@ class FilteredDeformationRule(DeformationRule):
 class StructuralRule(Rule):
 
     def __init__(self, type, lhs, rhs, detwindow, shiftwindow, i, anchor,
-                 offset, loc, blocks, metadata={}):
+                 offset, loc, blocks, metadata):
         super(StructuralRule, self).__init__(
             type, lhs, rhs, detwindow, shiftwindow, i, offset, loc, blocks, metadata
         )

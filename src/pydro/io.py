@@ -280,6 +280,8 @@ def _normalize_model(model):
             block_idx = rule['blocks']
             new_rule_blocks = [new_blocks[a] for a in block_idx]
 
+            metadata = rule.get('metadata', {})
+
             if rule['type'] == 'D':
                 df_idx = rule['df']['blocklabel']
                 block = new_blocks[df_idx]
@@ -300,6 +302,7 @@ def _normalize_model(model):
                     df=new_df,
                     loc=new_loc,
                     blocks=new_rule_blocks,
+                    metadata=metadata,
                 )
             elif rule['type'] == 'S':
                 new_rule = StructuralRule(
@@ -313,6 +316,7 @@ def _normalize_model(model):
                     anchor=rule['anchor'],
                     loc=new_loc,
                     blocks=new_rule_blocks,
+                    metadata=metadata,
                 )
 
             new_rules += [new_rule]
