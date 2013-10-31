@@ -88,10 +88,10 @@ PyObject * deformation_cost (PyArrayObject * pydata, float ax, float bx, float a
   free(tmpIx);
   free(tmpIy);
 
-  return Py_BuildValue("OOO", pydeformed, pyIx, pyIy);
+  return Py_BuildValue("NNN", pydeformed, pyIx, pyIy);
 }
 
-PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias, int width, int height) {
+PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, float bias, int width, int height) {
     npy_intp * features_dims = PyArray_DIMS(pyfeatures);
     npy_intp * filter_dims = PyArray_DIMS(pyfilter);
     int a, b, l;
@@ -186,7 +186,7 @@ PyArrayObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilt
         }
     }
 
-    return pyfiltered;
+    return Py_BuildValue("N", pyfiltered);
 }
 
 static PyObject * DeformationCost(PyObject * self, PyObject * args)
@@ -208,7 +208,7 @@ static PyObject * FilterImage(PyObject * self, PyObject * args)
     int height = 0;
     if (!PyArg_ParseTuple(args, "O!O!|fii", &PyArray_Type, &pyfeatures, &PyArray_Type, &pyfilter, &bias, &width, &height)) 
         return NULL;
-    return PyArray_Return(filter_image(pyfeatures, pyfilter, bias, width, height));
+    return filter_image(pyfeatures, pyfilter, bias, width, height);
 }
 
 static PyObject * FilterImages(PyObject * self, PyObject * args)
@@ -221,7 +221,7 @@ static PyObject * FilterImages(PyObject * self, PyObject * args)
     int numdims = 0;
     int i;
     PyObject ** objs = NULL;
-    PyArrayObject ** results = NULL;
+    PyObject ** results = NULL;
     PyObject * pyresults_list;
     if (!PyArg_ParseTuple(args, "O!O!|fO!", &PyList_Type, &pyfeatures_list, &PyArray_Type, &pyfilter, &bias, &PyList_Type, &pydims_list)) 
         return NULL;
@@ -240,7 +240,7 @@ static PyObject * FilterImages(PyObject * self, PyObject * args)
     objs = (PyObject**)calloc(numfilters, sizeof(PyObject*));
     int* widths = (int*)calloc(numfilters, sizeof(int));
     int* heights = (int*)calloc(numfilters, sizeof(int));
-    results = (PyArrayObject**)calloc(numfilters, sizeof(PyArrayObject*));
+    results = (PyObject**)calloc(numfilters, sizeof(PyObject*));
 
     for (i = 0; i < numfilters; ++i) {
         objs[i] = PyList_GetItem(pyfeatures_list, i);
@@ -286,12 +286,12 @@ static PyObject * FilterImages(PyObject * self, PyObject * args)
     pyresults_list = PyList_New(numfilters);
 
     for (i = 0; i < numfilters; ++i) {
-        PyList_SetItem(pyresults_list, i, PyArray_Return(results[i]));
+        PyList_SetItem(pyresults_list, i, results[i]);
     }
 
     free(results);
 
-    return Py_BuildValue("O", pyresults_list);    
+    return Py_BuildValue("N", pyresults_list);    
 }
 
 #if PY_MAJOR_VERSION >= 3
