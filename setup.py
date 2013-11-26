@@ -1,8 +1,6 @@
 from distutils.core import setup, Extension
 import numpy
 
-from intelccompiler import *
-
 import argparse
 
 parser = argparse.ArgumentParser()
