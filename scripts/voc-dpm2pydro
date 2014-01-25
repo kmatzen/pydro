@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-import sys
-sys.path.insert(0, 'src')
-
 import numpy
 import scipy.io
 
@@ -22,12 +19,12 @@ def convert_filters(old_filters):
         flip, = old_filter[2]
         symbol, = old_filter[3]
 
-        new_filter = Filter(
-            blocklabel=int(blocklabel),
-            size=tuple(size.astype(numpy.int32)),
-            flip=bool(flip),
-            symbol=int(symbol),
-        )
+        new_filter = {
+            'blocklabel':int(blocklabel),
+            'size':tuple(size.astype(numpy.int32)),
+            'flip':bool(flip),
+            'symbol':int(symbol),
+        }
         yield new_filter
 
 def convert_def(old_def):
@@ -35,26 +32,26 @@ def convert_def(old_def):
     blocklabel, = old_def[0]
     flip, = old_def[1]
 
-    new_def = Def(
-        blocklabel=int(blocklabel),
-        flip=bool(flip),
-    )
+    new_def = {
+        'blocklabel':int(blocklabel),
+        'flip':bool(flip),
+    }
     return new_def
 
 def convert_loc(old_loc):
     blocklabel, = old_loc[0]
 
-    new_loc = Loc(
-        blocklabel=int(blocklabel),
-    )
+    new_loc = {
+        'blocklabel':int(blocklabel),
+    }
     return new_loc
 
 def convert_offset(old_offset):
     blocklabel, = old_offset[0]
 
-    new_offset = Offset(
-        blocklabel=int(blocklabel),
-    )
+    new_offset = {
+        'blocklabel':int(blocklabel),
+    }
     return new_offset
 
 def convert_rules(old_rules):
@@ -78,18 +75,19 @@ def convert_rules(old_rules):
                 loc, = old_rule[8]
                 blocks, = old_rule[9]
 
-                new_rule = DeformationRule(
-                    type=str(type),
-                    lhs=int(lhs),
-                    rhs=tuple(rhs.astype(numpy.int32)),
-                    detwindow=tuple(detwindow.astype(numpy.int32)),
-                    shiftwindow=tuple(shiftwindow.astype(numpy.int32)),
-                    i=int(i),
-                    offset=convert_offset(offset),
-                    df=convert_def(df),
-                    loc=convert_loc(loc),
-                    blocks=tuple(blocks.astype(numpy.int32)),
-                )
+                new_rule = {
+                    'type':str(type),
+                    'lhs':int(lhs),
+                    'rhs':tuple(rhs.astype(numpy.int32)),
+                    'detwindow':tuple(detwindow.astype(numpy.int32)),
+                    'shiftwindow':tuple(shiftwindow.astype(numpy.int32)),
+                    'i':int(i),
+                    'offset':convert_offset(offset),
+                    'df':convert_def(df),
+                    'loc':convert_loc(loc),
+                    'blocks':tuple(blocks.astype(numpy.int32)),
+                    'metadata':{},
+                }
 
             elif type == 'S':
                 anchor, = old_rule[6]
@@ -97,18 +95,19 @@ def convert_rules(old_rules):
                 loc, = old_rule[8]
                 blocks, = old_rule[9]
 
-                new_rule = StructuralRule(
-                    type=str(type),
-                    lhs=int(lhs),
-                    rhs=tuple(rhs.astype(numpy.int32)),
-                    detwindow=tuple(detwindow.astype(numpy.int32)),
-                    shiftwindow=tuple(shiftwindow.astype(numpy.int32)),
-                    i=int(i),
-                    anchor=tuple(tuple(a.astype(numpy.int32).tolist()) for a, in anchor),
-                    offset=convert_offset(offset),
-                    loc=convert_loc(loc),
-                    blocks=tuple(blocks.astype(numpy.int32)),
-                )
+                new_rule = {
+                    'type':str(type),
+                    'lhs':int(lhs),
+                    'rhs':tuple(rhs.astype(numpy.int32)),
+                    'detwindow':tuple(detwindow.astype(numpy.int32)),
+                    'shiftwindow':tuple(shiftwindow.astype(numpy.int32)),
+                    'i':int(i),
+                    'anchor':tuple(tuple(a.astype(numpy.int32).tolist()) for a, in anchor),
+                    'offset':convert_offset(offset),
+                    'loc':convert_loc(loc),
+                    'blocks':tuple(blocks.astype(numpy.int32)),
+                    'metadata':{}
+                }
 
             new_group += [new_rule]
         yield new_group
@@ -121,10 +120,10 @@ def convert_symbols(old_symbols):
         else:
             filter = None
 
-        new_symbol = Symbol(
-            type=str(type),
-            filter=None if not filter else int(filter),
-        )
+        new_symbol = {
+            'type':str(type),
+            'filter':None if not filter else int(filter),
+        }
         yield new_symbol
 
 def convert_features(old_features):
@@ -135,13 +134,13 @@ def convert_features(old_features):
     extra_octave, = old_features[3]
     bias, = old_features[4]
 
-    new_feature = Features(
-        sbin=int(sbin),
-        dim=int(dim),
-        truncation_dim=int(truncation_dim),
-        extra_octave=bool(extra_octave),
-        bias=int(bias),
-    )
+    new_feature = {
+        'sbin':int(sbin),
+        'dim':int(dim),
+        'truncation_dim':int(truncation_dim),
+        'extra_octave':bool(extra_octave),
+        'bias':int(bias),
+    }
     return new_feature
 
 def convert_blocks(old_blocks):
@@ -154,24 +153,24 @@ def convert_blocks(old_blocks):
         shape, = old_block[5]
         type, = old_block[6]
     
-        new_block = Block(
-            w=numpy.array(w).astype(numpy.float32).reshape(shape.astype(numpy.int32), order='F'),
-            lb=lb.astype(numpy.float32).flatten(),
-            learn=float(learn),
-            reg_mult=float(reg_mult),
-            dim=int(dim),
-            type=str(type),
-        )
+        new_block = {
+            'w':numpy.array(w).astype(numpy.float32).reshape(shape.astype(numpy.int32), order='F'),
+            'lb':lb.astype(numpy.float32).flatten(),
+            'learn':float(learn),
+            'reg_mult':float(reg_mult),
+            'dim':int(dim),
+            'type':str(type),
+        }
         yield new_block
 
 def convert_stats(old_stats):
     old_stats = old_stats[0]
-    new_stats = Stats(
-        slave_problem_time=old_stats[0].astype(numpy.float32).flatten(),
-        data_mining_time=old_stats[1].astype(numpy.float32).flatten(),
-        pos_latent_time=old_stats[2].astype(numpy.float32).flatten(),
-        filter_usage=old_stats[3].astype(numpy.float32).flatten(),
-    )
+    new_stats = {
+        'slave_problem_time':old_stats[0].astype(numpy.float32).flatten(),
+        'data_mining_time':old_stats[1].astype(numpy.float32).flatten(),
+        'pos_latent_time':old_stats[2].astype(numpy.float32).flatten(),
+        'filter_usage':old_stats[3].astype(numpy.float32).flatten(),
+    }
     return new_stats
 
 def convert_model(old_model):
@@ -197,28 +196,28 @@ def convert_model(old_model):
     old_features, = old_model[17]
     old_stats, = old_model[18]
 
-    new_model = Model(
-        clss=str(clss),
-        year=str(year),
-        note=str(note),
-        filters=list(convert_filters(old_filters)),
-        rules=list(convert_rules(old_rules)),
-        symbols=list(convert_symbols(old_symbols)),
-        start=int(start),
-        maxsize=tuple(maxsize.astype(numpy.int32)),
-        minsize=tuple(minsize.astype(numpy.int32)),
-        interval=int(interval),
-        sbin=int(sbin),
-        thresh=float(thresh),
-        type=str(type),
-        blocks=list(convert_blocks(old_blocks)),
-        features=convert_features(old_features),
-        stats=convert_stats(old_stats),
-    )
+    new_model = {
+        'clss':str(clss),
+        'year':str(year),
+        'note':str(note),
+        'filters':list(convert_filters(old_filters)),
+        'rules':list(convert_rules(old_rules)),
+        'symbols':list(convert_symbols(old_symbols)),
+        'start':int(start),
+        'maxsize':tuple(maxsize.astype(numpy.int32)),
+        'minsize':tuple(minsize.astype(numpy.int32)),
+        'interval':int(interval),
+        'sbin':int(sbin),
+        'thresh':float(thresh),
+        'type':str(type),
+        'blocks':list(convert_blocks(old_blocks)),
+        'features':convert_features(old_features),
+        'stats':convert_stats(old_stats),
+    }
 
-    assert int(numfilters) == len(new_model.filters)
-    assert int(numblocks) == len(new_model.blocks)
-    assert int(numsymbols) == len(new_model.symbols)
+    assert int(numfilters) == len(new_model['filters'])
+    assert int(numblocks) == len(new_model['blocks'])
+    assert int(numsymbols) == len(new_model['symbols'])
 
     return new_model
 

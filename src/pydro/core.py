@@ -720,7 +720,7 @@ class Def(object):
 
         self._w = self.blocklabel.w.copy()
         if self.flip:
-            self._w[1] *= -1
+            self._w[0][1] *= -1
 
     def GetFeatures(self, model, node):
         child_node, = node.children

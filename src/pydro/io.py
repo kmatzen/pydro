@@ -255,9 +255,22 @@ def _normalize_model(model):
 
     symbol_rule_list = list(
         enumerate(itertools.izip(model['symbols'], model['rules'])))
-    symbol_rule_list.reverse()
+
+    untaken = set(range(1,1+len(symbol_rule_list)))
+    symbol_queue = Queue.Queue()
 
     for pos, (symbol, rules) in symbol_rule_list:
+        okay = True
+        for rule in rules:
+            if len(rule['rhs']) != 0:
+                okay = False
+                break
+        if okay:
+            symbol_queue.put ((pos, (symbol, rules)))
+            untaken.remove (pos+1)
+
+    while not symbol_queue.empty():
+        pos, (symbol, rules) = symbol_queue.get()
         new_rules = []
         for rule in rules:
             rhs_idx = rule['rhs']
@@ -328,6 +341,20 @@ def _normalize_model(model):
         )
 
         new_symbols[pos + 1] = new_symbol
+
+        for pos, (symbol, rules) in symbol_rule_list:
+            if pos+1 not in untaken:
+                continue
+            okay = True
+            for rule in rules:
+                if len(set(rule['rhs']).intersection(untaken)) != 0:
+                    okay = False
+                    break
+            if okay:
+                symbol_queue.put ((pos, (symbol, rules)))
+                untaken.remove (pos+1)
+
+    assert len(untaken) == 0
 
     for pos, (symbol, rules) in symbol_rule_list:
         new_symbol = new_symbols[pos + 1]
