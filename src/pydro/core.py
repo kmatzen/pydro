@@ -523,6 +523,8 @@ class FilteredStructuralRule(StructuralRule):
 class Symbol(object):
 
     def __init__(self, type, filter, rules=[]):
+        if type == 'T':
+            assert filter is not None
         self.type = type
         self.filter = filter
         self.rules = rules

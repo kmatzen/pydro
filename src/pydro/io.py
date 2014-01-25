@@ -124,6 +124,7 @@ def _denormalize_model(model):
     }
 
     for old_symbol in old_symbols:
+        assert old_symbol.type != 'T' or old_symbol.filter is not None
         if old_symbol.filter not in filters:
             if old_symbol.filter.blocklabel not in blocks:
                 new_block = {
@@ -143,8 +144,8 @@ def _denormalize_model(model):
 
             new_filter = {
                 'blocklabel': new_filter_blocklabel,
-                'size': symbol.filter.size,
-                'flip': symbol.filter.flip,
+                'size': old_symbol.filter.size,
+                'flip': old_symbol.filter.flip,
                 'symbol': new_filter_symbol,
             }
 
@@ -218,8 +219,9 @@ def _denormalize_model(model):
                 }
             new_rules += [new_rule]
 
+        assert old_symbol.type != 'T' or filters[old_symbol.filter] is not None
         new_symbol = {
-            'type': symbol.type,
+            'type': old_symbol.type,
             'filter': filters[old_symbol.filter],
         }
 
@@ -252,6 +254,9 @@ def _normalize_model(model):
         )
 
         new_filters[pos + 1] = new_filter
+
+    for symbol in model['symbols']:
+        assert symbol['type'] != 'T' or symbol['filter'] is not None
 
     symbol_rule_list = list(
         enumerate(itertools.izip(model['symbols'], model['rules'])))
@@ -334,6 +339,10 @@ def _normalize_model(model):
 
             new_rules += [new_rule]
 
+        if symbol['type'] == 'T' and new_filters[symbol['filter']] is None:
+            print(symbol)
+            print(symbol['filter'])
+            print(pos+1)
         new_symbol = Symbol(
             type=symbol['type'],
             filter=new_filters[symbol['filter']],
