@@ -2,6 +2,7 @@ from intelccompiler import *
 from distutils.core import setup, Extension
 import numpy
 
+import os
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -10,7 +11,7 @@ args, unknown = parser.parse_known_args()
 
 if args.compiler == 'intelem':
     #MKLROOT = '/usr/local/intel/composer_xe_2013.5.192/mkl'
-    MKLROOT = '/tmp/kmatzen/intel/mkl'
+    MKLROOT = '/ld1/kmatzen/intel/mkl'
 
     libs = [
         'mkl_rt',
@@ -26,6 +27,7 @@ if args.compiler == 'intelem':
         '-march=corei7',
         '-openmp',
         '-fp-model fast',
+        '-wd1498'
     ]
 
     library_dirs = [
@@ -76,7 +78,9 @@ pydro_detection = Extension(
         '-Werror', 
         '-Wno-long-long',
         '-funroll-loops',
-    ]+flags,
+    ]+flags+os.environ.get('CXXFLAGS','').split(),
+
+    extra_link_args=os.environ.get('LDFLAGS','').split(),
 
     include_dirs=[
         numpy.get_include(), 
@@ -101,7 +105,9 @@ pydro_train = Extension(
         '-Werror', 
         '-Wno-long-long',
         '-funroll-loops',
-    ]+flags,
+    ]+flags+os.environ.get('CXXFLAGS','').split(),
+
+    extra_link_args=os.environ.get('LDFLAGS','').split(),
 
     include_dirs=[
         numpy.get_include(), 
@@ -125,7 +131,9 @@ pydro_features = Extension(
         '-Wall', 
         '-Werror', 
         '-Wno-long-long'
-    ]+flags,
+    ]+flags+os.environ.get('CXXFLAGS','').split(),
+
+    extra_link_args=os.environ.get('LDFLAGS','').split(),
 
     include_dirs=[
         numpy.get_include(), 
