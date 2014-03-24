@@ -2,6 +2,7 @@ from intelccompiler import *
 from distutils.core import setup, Extension
 import numpy
 
+import os
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -77,7 +78,9 @@ pydro_detection = Extension(
         '-Werror', 
         '-Wno-long-long',
         '-funroll-loops',
-    ]+flags,
+    ]+flags+os.environ.get('CXXFLAGS','').split(),
+
+    extra_link_args=os.environ.get('LDFLAGS','').split(),
 
     include_dirs=[
         numpy.get_include(), 
@@ -102,7 +105,9 @@ pydro_train = Extension(
         '-Werror', 
         '-Wno-long-long',
         '-funroll-loops',
-    ]+flags,
+    ]+flags+os.environ.get('CXXFLAGS','').split(),
+
+    extra_link_args=os.environ.get('LDFLAGS','').split(),
 
     include_dirs=[
         numpy.get_include(), 
@@ -126,7 +131,9 @@ pydro_features = Extension(
         '-Wall', 
         '-Werror', 
         '-Wno-long-long'
-    ]+flags,
+    ]+flags+os.environ.get('CXXFLAGS','').split(),
+
+    extra_link_args=os.environ.get('LDFLAGS','').split(),
 
     include_dirs=[
         numpy.get_include(), 
