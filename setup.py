@@ -26,6 +26,7 @@ if args.compiler == 'intelem':
         '-march=corei7',
         '-openmp',
         '-fp-model fast',
+        '-wd1498'
     ]
 
     library_dirs = [
