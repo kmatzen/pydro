@@ -178,7 +178,10 @@ def convert_model(old_model):
 
     clss, = old_model[0]
     year, = old_model[1]
-    note, = old_model[2]
+    if len(old_model[2]) == 1:
+        note, = old_model[2]
+    else:
+        note = ''
     old_filters, = old_model[3]
     old_rules, = old_model[4]
     old_symbols, = old_model[5]

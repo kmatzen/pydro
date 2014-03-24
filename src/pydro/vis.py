@@ -1,12 +1,32 @@
 import Queue
 
 import numpy
-import scipy.misc
+from scipy.misc import imrotate
 
-from pydro.core import *
+from pydro.core import TreeNode
 
 
-def ShowDetections(trees, image):
+def hog_picture(hog, resolution):
+    glyph1 = numpy.zeros((resolution, resolution), dtype=numpy.uint8)
+    glyph1[:, round(resolution / 2):round(resolution / 2) + 1] = 255
+    glyph = numpy.zeros((resolution, resolution, 9), dtype=numpy.uint8)
+    glyph[:, :, 0] = glyph1
+    for i in xrange(1, 9):
+        glyph[:, :, i] = imrotate(glyph1, -i * 20)
+
+    shape = hog.shape
+    clamped_hog = hog.copy()
+    clamped_hog[hog < 0] = 0
+    image = numpy.zeros((resolution * shape[0], resolution * shape[1]), dtype=numpy.float32)
+    for i in xrange(shape[0]):
+        for j in xrange(shape[1]):
+            for k in xrange(9):
+                image[i*resolution:(i+1)*resolution, j*resolution:(j+1)*resolution] += clamped_hog[i, j, k] * glyph[:, :, k]
+
+    return image
+
+
+def draw_detections(trees, image):
     canvas = image.copy()
 
     colors = numpy.array([
@@ -48,5 +68,4 @@ def ShowDetections(trees, image):
                 if y2 < canvas.shape[0]:
                     canvas[
                         y2, max(0, x1):min(x2, canvas.shape[1] - 1) + 1] = color
-
-    scipy.misc.imshow(canvas)
+    return canvas
