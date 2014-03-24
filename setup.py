@@ -10,7 +10,7 @@ args, unknown = parser.parse_known_args()
 
 if args.compiler == 'intelem':
     #MKLROOT = '/usr/local/intel/composer_xe_2013.5.192/mkl'
-    MKLROOT = '/tmp/kmatzen/intel/mkl'
+    MKLROOT = '/ld1/kmatzen/intel/mkl'
 
     libs = [
         'mkl_rt',
