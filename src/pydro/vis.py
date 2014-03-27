@@ -8,7 +8,7 @@ from pydro.core import TreeNode
 
 def hog_picture(hog, resolution):
     glyph1 = numpy.zeros((resolution, resolution), dtype=numpy.uint8)
-    glyph1[:, round(resolution / 2):round(resolution / 2) + 1] = 255
+    glyph1[:, round(resolution / 2)-1:round(resolution / 2) + 1] = 255
     glyph = numpy.zeros((resolution, resolution, 9), dtype=numpy.uint8)
     glyph[:, :, 0] = glyph1
     for i in xrange(1, 9):
@@ -21,7 +21,7 @@ def hog_picture(hog, resolution):
     for i in xrange(shape[0]):
         for j in xrange(shape[1]):
             for k in xrange(9):
-                image[i*resolution:(i+1)*resolution, j*resolution:(j+1)*resolution] += clamped_hog[i, j, k] * glyph[:, :, k]
+                image[i*resolution:(i+1)*resolution, j*resolution:(j+1)*resolution] = numpy.maximum(image[i*resolution:(i+1)*resolution, j*resolution:(j+1)*resolution], clamped_hog[i, j, k] * glyph[:, :, k])
 
     return image
 

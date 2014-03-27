@@ -143,6 +143,7 @@ PyObject * filter_image (PyArrayObject * pyfeatures, PyArrayObject * pyfilter, f
         return NULL;
     }
 
+    #pragma omp critical
     pyfiltered = (PyArrayObject*)PyArray_SimpleNew((npy_intp)2, filtered_dims, NPY_FLOAT);
 
     filtered_stride = PyArray_STRIDES(pyfiltered);
